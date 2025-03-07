@@ -1,0 +1,8 @@
+"IdReferencia";"RefAnterior";"RefPosterior"
+1;"Deroga a";"Derogada por"
+2;"Modifica a";"Modificada por"
+3;"Texto consolidado por";"En Texto consolidado"
+4;"Deroga parcialmente a";"Derogada parcialmente por"
+5;"Corrección de errores de";"Corrección de errores por"
+6;"Relacionado con";"Relacionado con"
+7;"Obsoleto";"Obsoleto"
