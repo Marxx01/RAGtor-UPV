@@ -19,13 +19,10 @@ def create_empty_faiss(embedding_model):
     """
     # Use a dummy query to get the embedding dimension
     dummy_embedding = embedding_model.embed_query("dummy")
-    embedding_dim = len(dummy_embedding)
+    print(dummy_embedding)
+    print('error')
     # Create a FAISS index (using L2 distance)
     index = faiss.IndexFlatL2(embedding_dim)
-    
-    # Create empty docstore and index_to_docstore_id dictionaries
-    docstore = {}
-    index_to_docstore_id = {}
     
     # Instantiate the FAISS vector store using the low-level constructor
     faiss.write_index(index, "faiss_db.index")
@@ -173,4 +170,15 @@ def update_faiss():
 # =============================================================================
 
 if __name__ == "__main__":
-    create_empty_faiss(HuggingFaceEmbeddings(model_name='sentence-transformers/LaBSE'))
+    print('aaa')
+    model_name = "sentence-transformers/all-MiniLM-L6-v2"
+    model_kwargs = {'device': 'cpu'}
+    encode_kwargs = {'normalize_embeddings': False}
+    hf = HuggingFaceEmbeddings(
+        model_name=model_name,
+        model_kwargs=model_kwargs,
+        encode_kwargs=encode_kwargs
+    )
+    create_empty_faiss(hf)
+
+
