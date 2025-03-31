@@ -1,14 +1,32 @@
 import streamlit as st
-from datetime import datetime
-import time
-
-# Configuración de la página
 st.set_page_config(
     page_title="🦖 RAGtor-UPV",
     page_icon="🦖 ",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+from rag_functions import RAGSystem, load_and_process_pdfs, setup_vector_store, generate_rag_response
+from datetime import datetime
+import time
+
+if "rag_system" not in st.session_state:
+    from rag_functions import get_rag_system
+    st.session_state.rag_system = get_rag_system()
+    with st.spinner("Inicializando sistema..."):
+        # Configura rutas absolutas para mayor seguridad
+        pdf_paths = [
+            "../01_data/BBDD_Normativa_UPV/2022202200133100001545.pdf",
+            "../01_data/BBDD_Normativa_UPV/U0924996.pdf",
+        ]
+        
+        if not st.session_state.rag_system.initialize_llm():
+            st.error("No se pudo inicializar Ollama. Verifica que esté instalado y el modelo descargado.")
+            st.stop()
+            
+        chunks = st.session_state.rag_system.load_and_process_pdfs(pdf_paths)
+        st.session_state.vector_store = st.session_state.rag_system.setup_vector_store(chunks)
+
+# Configuración de la págin
 
 # Estilos CSS personalizados
 st.markdown("""
@@ -194,9 +212,7 @@ for message in st.session_state.messages:
 
 # Función de prueba para el LLM
 def generate_response(user_input, chat_history):
-    # Esta es la función de prueba - reemplazar con la conexión real al LLM
-    print("Prueba de llamada al LLM")  # Esto se verá en la consola
-    return f"🦖 Respuesta a: '{user_input}'. [Este es un mensaje de prueba del LLM local]"
+    return generate_rag_response(user_input, st.session_state.vector_store)
 
 # Entrada del usuario con diseño verde
 prompt_container = st.container()
