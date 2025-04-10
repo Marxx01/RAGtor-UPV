@@ -21,7 +21,7 @@ vector_store = FAISS(
     index_to_docstore_id={}
 )
 
-texts = ["Hola mundo", "Inteligencia artificial", "Aprendizaje automático"]
+texts = ["inteligencia artificial y aprendizaje", "aprendizaje profundo y redes neuronales", "procesamiento de lenguaje natural y transformers"]
 
 # Agregar documentos al vector store
 vector_store.add_texts(texts)
@@ -35,7 +35,7 @@ print("Índice FAISS guardado en local.")
 
 vector_store = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization = True)
 
-query = "inteligencia artificial y aprendizaje"
+query = "¿Qué es el aprendizaje profundo?"
 
 resultados = vector_store.similarity_search_with_score(query, k=3)
 
