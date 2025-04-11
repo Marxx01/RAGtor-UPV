@@ -167,7 +167,7 @@ def update_database(db_name="./01_data/project_database.db", directory="./01_dat
 
 
 if __name__ == "__main__":
-    create_database()
+    #create_database()
     update_database()
 
     

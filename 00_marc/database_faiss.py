@@ -1,17 +1,14 @@
 import os
 import sqlite3
 import PyPDF2
+from langchain.schema import Document
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import database_sql as db
 
-
 # =============================================================================
-# FAISS Functions
-# =============================================================================
-
 def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_faiss'):
     """
     Connects to or creates a FAISS vector store in a subprocess.
@@ -36,16 +33,12 @@ def commit_faiss(vector_store, faiss_index_dir='./01_data/project_faiss'):
     print("FAISS index saved.")
     return True
 
-# =============================================================================
-# PDF Processing Functions
-# =============================================================================
-
 def determine_new_pdfs():
     """
     Determines the PDFs to be processed by consulting the database.
     """
-    connection, cursor = db.connect_db()
-    cursor.execute("SELECT pdfs.path, pdfs.id FROM pdfs, chunks WHERE in_use = TRUE AND pdfs.id not in chunks.pdf_id;")
+    connection, cursor = db.connect_db('./01_data/project_database.db')
+    cursor.execute("SELECT pdfs.path, pdfs.id FROM pdfs WHERE in_use = TRUE AND pdfs.id NOT IN (SELECT pdf_id FROM chunks);")
     pdfs = cursor.fetchall()
     db.disconnect_db(connection)
     return pdfs
@@ -54,8 +47,8 @@ def determine_chunks_to_delete():
     """
     Determines the chunks to be deleted by consulting the database.
     """
-    connection, cursor = db.connect_db()
-    cursor.execute("SELECT chunks.id FROM pdfs, chunks WHERE in_use = FALSE AND checked = TRUE AND pdfs.id in chunks.pdf_id;")
+    connection, cursor = db.connect_db('./01_data/project_database.db')
+    cursor.execute("SELECT chunks.id FROM pdfs, chunks WHERE in_use = FALSE AND checked = TRUE AND pdfs.id = chunks.pdf_id;")
     chunks = cursor.fetchall()
     db.disconnect_db(connection)
     return [chunk[0] for chunk in chunks]
@@ -107,7 +100,7 @@ def update_chunks_in_db(chunks):
     """
     Updates the chunks in the database.
     """
-    connection, cursor = db.connect_db()
+    connection, cursor = db.connect_db('./01_data/project_database.db')
     for chunk, page_num, pdf_id in chunks:
         cursor.execute("INSERT INTO chunks (chunk, pdf_id, page) VALUES (?, ?, ?)", (chunk, pdf_id, page_num))
     db.commit_db(connection)
@@ -117,47 +110,70 @@ def delete_chunks_from_db(chunk_ids):
     """
     Deletes chunks from the database.
     """
-    connection, cursor = db.connect_db()
+    connection, cursor = db.connect_db('./01_data/project_database.db')
     for chunk_id in chunk_ids:
         cursor.execute("DELETE FROM chunks WHERE id = ?", (chunk_id,))
     db.commit_db(connection)
     db.disconnect_db(connection)
 
-def insert_faiss(chunks):
+def insert_faiss(chunks, vector_store):
     """
-    Inserts chunks into the FAISS index.
+    Inserts chunks into the FAISS index using LangChain, with custom chunk_ids as document IDs.
     
     Args:
         chunks (List[Tuple[str, int, int]]): List of (chunk_text, page_number, chunk_id)
+        vector_store (FAISS): FAISS vector store with embedding model
+    
+    Returns:
+        bool: True if chunks were inserted successfully.
     """
-    for chunk, page_num, chunk_id in chunks:
-        vector_store.add(chunk, chunk_id)
+    embedding_model = vector_store.embedding_function
+
+    documents = [
+        Document(
+            page_content=chunk,
+            metadata={"page": page_num}
+        )
+        for chunk, page_num, chunk_id in chunks
+    ]
+    
+    ids = [str(chunk_id) for _, _, chunk_id in chunks]
+    vector_store.add_documents(documents, embedding=embedding_model, ids=ids)
+
     print("Chunks inserted into FAISS index.")
     return True
 
-def delete_faiss(chunk_ids):
+def delete_faiss(chunk_ids, faiss_index):
     """
-    Deletes chunks from the FAISS index.
+    Deletes chunks from the FAISS index by chunk_id.
     
     Args:
         chunk_ids (List[int]): List of chunk IDs to delete
+        faiss_index (FAISS): The vector store instance
     """
-    for chunk_id in chunk_ids:
-        vector_store.delete(chunk_id)
+    ids_to_delete = [str(chunk_id) for chunk_id in chunk_ids]
+    faiss_index.delete(ids_to_delete)
+
     print("Chunks deleted from FAISS index.")
     return True
 
 def update_faiss(vector_store):
-    
     """
     Updates the FAISS index with the latest chunks.
     """
+    print('Determining new PDFs to process...')
     pdfs_to_process = determine_new_pdfs()
+    print('Determining chunks to delete...')
     chunks_to_delete = determine_chunks_to_delete()
+    print('Reading new PDFs...')
     new_chunks = read_pdfs(pdfs_to_process)
-    insert_faiss(new_chunks)
+    print('Inserting new chunks into the FAISS index...')
+    insert_faiss(new_chunks, vector_store)
+    print('Updating chunks in the database...')
+    update_chunks_in_db(new_chunks)
+    print("Deleting chunks from FAISS index...")
+    delete_faiss(chunks_to_delete, vector_store)
     delete_chunks_from_db(chunks_to_delete)
-    delete_faiss(chunks_to_delete)
     commit_faiss(vector_store)
     print("FAISS index updated.")
     return True
@@ -177,9 +193,6 @@ def obtain_context(query, vector_store):
         context.append(f"{i+1}. {doc} (Score: {score})")
     return context
 
-
-
-
 # =============================================================================
 # Main Execution
 # =============================================================================
@@ -188,7 +201,13 @@ if __name__ == "__main__":
     # Load the embedding model
     model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
     embedding_dim = len(model.embed_query("hello world"))
+    
     import faiss
     index = faiss.IndexFlatL2(embedding_dim)
+    
     vector_store = connect_faiss(embedding_model=model, index=index)
     commit_faiss(vector_store)
+    
+    # Update the FAISS index
+    print("Updating FAISS index...")
+    update_faiss(vector_store)
