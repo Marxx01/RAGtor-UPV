@@ -1,62 +1,10 @@
-import os
-import multiprocessing
-import sqlite3
-from typing import List, Tuple
-from itertools import chain
 import PyPDF2
-from langchain.schema import Document
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import database_sql as db
-
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-# =============================================================================
-def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_faiss'):
-    """
-    Connects to or creates a FAISS vector store in a subprocess.
-    """
-    try:
-        vector_store = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization = True)
-    except:
-        vector_store = FAISS(
-            embedding_function=embedding_model,  
-            index=index,
-            docstore=InMemoryDocstore(),
-            index_to_docstore_id={}
-            )
-    return vector_store
-
-
-def commit_faiss(vector_store, faiss_index_dir='./01_data/project_faiss'):
-    """
-    Commits the FAISS vector store to disk.
-    """
-    vector_store.save_local(faiss_index_dir)
-    print("FAISS index saved.")
-    return True
-
-def determine_new_pdfs():
-    """
-    Determines the PDFs to be processed by consulting the database.
-    """
-    connection, cursor = db.connect_db('./01_data/project_database.db')
-    cursor.execute("SELECT pdfs.path, pdfs.id FROM pdfs WHERE in_use = TRUE AND pdfs.id NOT IN (SELECT pdf_id FROM chunks);")
-    pdfs = cursor.fetchall()
-    db.disconnect_db(connection)
-    return pdfs
-
-def determine_chunks_to_delete():
-    """
-    Determines the chunks to be deleted by consulting the database.
-    """
-    connection, cursor = db.connect_db('./01_data/project_database.db')
-    cursor.execute("SELECT chunks.id FROM pdfs, chunks WHERE in_use = FALSE AND checked = TRUE AND pdfs.id = chunks.pdf_id;")
-    chunks = cursor.fetchall()
-    db.disconnect_db(connection)
-    return [chunk[0] for chunk in chunks]
+import multiprocessing
+import os
+from typing import List, Tuple
+from itertools import chain # Needed to flatten the list of results
+import time # Added for timing example
 
 # --- Worker Function (Processes a single PDF) ---
 # This function will run in separate processes.
@@ -178,118 +126,59 @@ def read_pdfs_parallel(pdf_info_list: List[Tuple[str, int]], chunk_size: int = 5
     print(f"Generated {len(all_results)} chunks in total.")
     return all_results
 
-def update_chunks_in_db(chunks):
-    """
-    Updates the chunks in the database.
-    """
-    connection, cursor = db.connect_db('./01_data/project_database.db')
-    for chunk, page_num, pdf_id in chunks:
-        cursor.execute("INSERT INTO chunks (chunk, pdf_id, page) VALUES (?, ?, ?)", (chunk, pdf_id, page_num))
-    db.commit_db(connection)
-    db.disconnect_db(connection)
-
-def delete_chunks_from_db(chunk_ids):
-    """
-    Deletes chunks from the database.
-    """
-    connection, cursor = db.connect_db('./01_data/project_database.db')
-    for chunk_id in chunk_ids:
-        cursor.execute("DELETE FROM chunks WHERE id = ?", (chunk_id,))
-    db.commit_db(connection)
-    db.disconnect_db(connection)
-
-def insert_faiss(chunks, vector_store):
-    """
-    Inserts chunks into the FAISS index using LangChain, with custom chunk_ids as document IDs.
-    
-    Args:
-        chunks (List[Tuple[str, int, int]]): List of (chunk_text, page_number, chunk_id)
-        vector_store (FAISS): FAISS vector store with embedding model
-    
-    Returns:
-        bool: True if chunks were inserted successfully.
-    """
-    embedding_model = vector_store.embedding_function
-
-    documents = [
-        Document(
-            page_content=chunk,
-            metadata={"page": page_num}
-        )
-        for chunk, page_num, chunk_id in chunks
-    ]
-    
-    ids = [str(chunk_id) for _, _, chunk_id in chunks]
-    vector_store.add_documents(documents, embedding=embedding_model, ids=ids)
-
-    print("Chunks inserted into FAISS index.")
-    return True
-
-def delete_faiss(chunk_ids, faiss_index):
-    """
-    Deletes chunks from the FAISS index by chunk_id.
-    
-    Args:
-        chunk_ids (List[int]): List of chunk IDs to delete
-        faiss_index (FAISS): The vector store instance
-    """
-    ids_to_delete = [str(chunk_id) for chunk_id in chunk_ids]
-    faiss_index.delete(ids_to_delete)
-
-    print("Chunks deleted from FAISS index.")
-    return True
-
-def update_faiss(vector_store):
-    """
-    Updates the FAISS index with the latest chunks.
-    """
-    print('Determining new PDFs to process...')
-    pdfs_to_process = determine_new_pdfs()
-    print('Determining chunks to delete...')
-    chunks_to_delete = determine_chunks_to_delete()
-    print('Reading new PDFs...')
-    new_chunks = read_pdfs_parallel(pdfs_to_process)
-    print('Inserting new chunks into the FAISS index...')
-    insert_faiss(new_chunks, vector_store)
-    print('Updating chunks in the database...')
-    update_chunks_in_db(new_chunks)
-    print("Deleting chunks from FAISS index...")
-    delete_faiss(chunks_to_delete, vector_store)
-    delete_chunks_from_db(chunks_to_delete)
-    commit_faiss(vector_store)
-    print("FAISS index updated.")
-    return True
-
-def obtain_context(query, vector_store):
-    """
-    Obtains context from the FAISS index based on the query.
-    
-    Args:
-        query (str): The query string to search for.
-        vector_store: The FAISS vector store to search in.
-    """
-
-    results = vector_store.similarity_search_with_score(query, k=3)
-    context = []
-    for i, (doc, score) in enumerate(results):
-        context.append(f"{i+1}. {doc} (Score: {score})")
-    return context
-
-# =============================================================================
-# Main Execution
-# =============================================================================
-
+# --- Example Usage ---
 if __name__ == "__main__":
-    # Load the embedding model
-    model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
-    embedding_dim = len(model.embed_query("hello world"))
-    
-    import faiss
-    index = faiss.IndexFlatL2(embedding_dim)
-    
-    vector_store = connect_faiss(embedding_model=model, index=index)
-    commit_faiss(vector_store)
-    
-    # Update the FAISS index
-    print("Updating FAISS index...")
-    update_faiss(vector_store)
+    # Make sure this block is inside if __name__ == "__main__":
+    # This is necessary for multiprocessing on some operating systems (Windows)
+
+    # Create some example PDFs (or use real paths)
+    # Note: To test, you would need actual PDF files.
+    # Example: pdf_files = [("path/to/doc1.pdf", 1), ("path/to/doc2.pdf", 2), ...]
+    pdf_files_to_process = [
+        # Replace with paths to real PDFs and their IDs
+        ("01_data/pdf_actuales/1968000000000100000001.pdf", 1),
+        ("01_data/pdf_actuales/1985000000000900000017.pdf", 2),
+        # ... add more files
+    ]
+
+    # Create dummy files for the example if they don't exist (for demonstration only)
+    # You might need to install PyPDF2 (`pip install pypdf2`) if you don't have it
+    try:
+        from PyPDF2 import PdfWriter
+        pdf_writer_available = True
+    except ImportError:
+        pdf_writer_available = False
+        print("PyPDF2 not found, cannot create dummy PDF files. Skipping dummy file creation.")
+
+    if pdf_writer_available:
+        for fname, _ in pdf_files_to_process:
+             if "non_existent" not in fname and "encrypted" not in fname and not os.path.exists(fname):
+                  try:
+                      # Create a very basic empty PDF with PyPDF2 (if PyPDF2 is installed)
+                      writer = PdfWriter()
+                      writer.add_blank_page(width=612, height=792) # Standard US Letter size
+                      with open(fname, "wb") as f:
+                          writer.write(f)
+                      # Dummy file created: {fname}
+                      print(f"Dummy file created: {fname}")
+                  except Exception as e:
+                      # Could not create dummy file {fname}: {e}
+                      print(f"Could not create dummy file {fname}: {e}")
+
+
+    # Starting parallel PDF processing...
+    print("Starting parallel PDF processing...")
+    start_time = time.time() # You need to import time
+
+    # Call the new parallel function
+    final_chunks = read_pdfs_parallel(pdf_files_to_process, chunk_size=600, chunk_overlap=100)
+
+    end_time = time.time()
+    # Total processing time: {end_time - start_time:.2f} seconds
+    print(f"\nTotal processing time: {end_time - start_time:.2f} seconds")
+
+    # Optional: Print some chunks to verify
+    # print("\nSome generated chunks:")
+    # for i, chunk_info in enumerate(final_chunks[:5]):
+    #     # Chunk {i+1} (PDF ID: {chunk_info[2]}, Page: {chunk_info[1]}): '{chunk_info[0][:50]}...'
+    #     print(f"Chunk {i+1} (PDF ID: {chunk_info[2]}, Page: {chunk_info[1]}): '{chunk_info[0][:50]}...'")
