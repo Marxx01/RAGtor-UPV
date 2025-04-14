@@ -1,8 +1,7 @@
 import database_faiss as faissdb
 import database_sql as db
 import openai
-from langchain.embeddings import HuggingFaceEmbeddings
-import faiss
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 def get_response(client, query, context):
     response = client.chat.completions.create(
@@ -25,13 +24,15 @@ if __name__ == "__main__":
     )
 
     # Check for updates in the SQLite database
-    db.update_faiss()
+    db.update_database(db_name="./01_data/project_database.db", directory="./01_data/pdf_actuales")
 
     # Load the FAISS index
     model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
     embedding_dim = len(model.embed_query("hello world"))
+    import faiss
     index = faiss.IndexFlatL2(embedding_dim)
     vector_store = faissdb.connect_faiss(embedding_model=model, index=index)
+    faissdb.update_faiss(vector_store)
     faissdb.commit_faiss(vector_store)
 
     # Retrieve context
