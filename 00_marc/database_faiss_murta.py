@@ -21,9 +21,8 @@ def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_fai
     Connects to or creates a FAISS vector store in a subprocess.
     """
     try:
-        vector_store = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization=True)
-    except Exception as e:
-        print(f"Creating new FAISS vector store. Reason: {e}")
+        vector_store = FAISS.load_local(faiss_index_dir, embedding_model, allow_dangerous_deserialization=True)
+    except:
         vector_store = FAISS(
             embedding_function=embedding_model,
             index=index,
