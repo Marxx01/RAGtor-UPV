@@ -19,7 +19,7 @@ def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_fai
     Connects to or creates a FAISS vector store in a subprocess.
     """
     try:
-        vector_store = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization = True)
+        vector_store = FAISS.load_local(faiss_index_dir, embedding_model, allow_dangerous_deserialization = True)
     except:
         vector_store = FAISS(
             embedding_function=embedding_model,  
@@ -232,7 +232,6 @@ def insert_faiss(chunks, vector_store):
         )
         for chunk, page_num, chunk_id in chunks
     ]
-    
     ids = [str(chunk_id) for _, _, chunk_id in chunks]
     vector_store.add_documents(documents, embedding=embedding_model, ids=ids)
 
@@ -288,14 +287,17 @@ def update_faiss(vector_store):
     # Step 2: Process new PDFs and obtain new chunks
     print('Reading new PDFs...')
     new_chunks = read_pdfs_parallel(pdfs_to_process)
+    print(f"New chunks obtained: {len(new_chunks)}")
 
     # Step 3: Insert new chunks into the database and retrieve their auto-generated IDs
     print('Inserting new chunks into the database and retrieving their IDs...')
     stored_chunks = update_chunks_in_db(new_chunks)
+    print(f"Stored chunks obtained: {len(stored_chunks)}")
 
     # Step 4: Insert the new chunks into the FAISS index using the generated IDs
     print('Inserting new chunks into the FAISS index...')
-    insert_faiss(stored_chunks, vector_store)
+    if len(stored_chunks) != 0:
+        insert_faiss(stored_chunks, vector_store)
 
     # Step 5: Save the FAISS index to disk
     commit_faiss(vector_store)
@@ -312,10 +314,7 @@ def obtain_context(query, vector_store):
     """
 
     results = vector_store.similarity_search_with_score(query, k=3)
-    context = []
-    for i, (doc, score) in enumerate(results):
-        context.append(f"{i+1}. {doc} (Score: {score})")
-    return context
+    return results
 
 # =============================================================================
 # Main Execution
