@@ -1,32 +1,18 @@
 import streamlit as st
+from datetime import datetime
+import time
+
+# Import your PoliGPT class
+# Asegúrate de que el archivo poli_gpt.py esté en la misma carpeta o accesible en el PATH
+from poli_gpt import PoliGPT
+
+# Configuración de la página
 st.set_page_config(
     page_title="🦖 RAGtor-UPV",
     page_icon="🦖 ",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-from rag_functions import RAGSystem, load_and_process_pdfs, setup_vector_store, generate_rag_response
-from datetime import datetime
-import time
-
-if "rag_system" not in st.session_state:
-    from rag_functions import get_rag_system
-    st.session_state.rag_system = get_rag_system()
-    with st.spinner("Inicializando sistema..."):
-        # Configura rutas absolutas para mayor seguridad
-        pdf_paths = [
-            "../01_data/BBDD_Normativa_UPV/2022202200133100001545.pdf",
-            "../01_data/BBDD_Normativa_UPV/U0924996.pdf",
-        ]
-        
-        if not st.session_state.rag_system.initialize_llm():
-            st.error("No se pudo inicializar Ollama. Verifica que esté instalado y el modelo descargado.")
-            st.stop()
-            
-        chunks = st.session_state.rag_system.load_and_process_pdfs(pdf_paths)
-        st.session_state.vector_store = st.session_state.rag_system.setup_vector_store(chunks)
-
-# Configuración de la págin
 
 # Estilos CSS personalizados
 st.markdown("""
@@ -104,7 +90,10 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.divider()
     if st.button("🧹 Clean chat"):
+        # Clear both messages and the PoliGPT client
         st.session_state.messages = []
+        if "poligpt_client" in st.session_state:
+            del st.session_state.poligpt_client
         st.rerun()
 
 # Título principal
@@ -119,15 +108,15 @@ st.markdown("""
             --light-green: #e8f5e9;
             --accent-green: #4caf50;
         }
-        
+
         body {
             background-color: var(--light-green);
         }
-        
+
         .stApp {
             background: linear-gradient(135deg, var(--light-green) 0%, #c8e6c9 100%);
         }
-        
+
         .stChatMessage {
             border-radius: 20px !important;
             padding: 15px 20px !important;
@@ -135,14 +124,14 @@ st.markdown("""
             box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
             border: none !important;
         }
-        
+
         .user-message {
             background-color: var(--medium-green) !important;
             color: white !important;
             margin-left: 15% !important;
             border-top-right-radius: 5px !important;
         }
-        
+
         .bot-message {
             background-color: white !important;
             color: var(--dark-green) !important;
@@ -150,25 +139,25 @@ st.markdown("""
             border-top-left-radius: 5px !important;
             border: 1px solid var(--accent-green) !important;
         }
-        
+
         .stTextInput input {
             border-radius: 25px !important;
             padding: 12px 20px !important;
             border: 2px solid var(--accent-green) !important;
         }
-        
+
         .header {
             color: var(--dark-green) !important;
             border-bottom: 3px solid var(--accent-green) !important;
             padding-bottom: 15px !important;
             margin-bottom: 30px !important;
         }
-        
+
         .sidebar .sidebar-content {
             background: var(--dark-green) !important;
             color: white !important;
         }
-        
+
         .stButton button {
             border-radius: 20px !important;
             background-color: var(--accent-green) !important;
@@ -176,98 +165,122 @@ st.markdown("""
             border: none !important;
             padding: 10px 20px !important;
         }
-        
+
         .stButton button:hover {
             background-color: var(--medium-green) !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Inicializa el estado de sesión
+
+# --- Session State Initialization ---
+
+# Initialize chat messages history
 if "messages" not in st.session_state:
     st.session_state.messages = []
     welcome_msg = "Hi! I'm RAGtor-UPV, grrr. Feel free to ask me anything! 🦖📚"
     st.session_state.messages.append({
-        "role": "assistant", 
+        "role": "assistant",
         "message": welcome_msg,
         "timestamp": datetime.now().strftime("%H:%M:%S")
     })
 
-# Mostrar historial de mensajes
+# Initialize PoliGPT client only once per session
+if "poligpt_client" not in st.session_state:
+    with st.spinner("Initializing RAG model..."): # Optional: show a spinner while initializing
+        try:
+            st.session_state.poligpt_client = PoliGPT()
+            st.success("RAG model initialized!") # Optional: show success message
+        except Exception as e:
+             st.error(f"Error initializing RAG model: {e}")
+             st.stop() # Stop execution if initialization fails
+
+# Retrieve the PoliGPT client from session state
+poligpt_client = st.session_state.poligpt_client
+
+
+# --- Display Chat History ---
 for message in st.session_state.messages:
     role = message["role"]
     content = message["message"]
     timestamp = message.get("timestamp", "")
-    
+
+    # Apply message styles based on role
+    message_class = "user-message" if role == "user" else "bot-message"
+    header_color = "white" if role == "user" else "#1a3e2f"
+    content_color = "white" if role == "user" else "#333"
+    time_color = "#c8e6c9" if role == "user" else "#666"
+
     with st.chat_message(role):
         st.markdown(f"""
-            <div style='display: flex; justify-content: space-between; margin-bottom: 8px;'>
-                <strong style='color: {'white' if role == 'user' else '#1a3e2f'};'>
-                    {'Tú' if role == 'user' else '🦖 RAGtor-UPV'}
-                </strong>
-                <small style='color: {'#c8e6c9' if role == 'user' else '#666'};'>{timestamp}</small>
+            <div class="{message_class}" style="border-radius: 20px; padding: 15px 20px; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <div style='display: flex; justify-content: space-between; margin-bottom: 8px;'>
+                    <strong style='color: {header_color};'>
+                        {'You' if role == 'user' else '🦖 RAGtor-UPV'}
+                    </strong>
+                    <small style='color: {time_color};'>{timestamp}</small>
+                </div>
+                <div style='color: {content_color};'>{content}</div>
             </div>
-            <div style='color: {'white' if role == 'user' else '#333'};'>{content}</div>
         """, unsafe_allow_html=True)
 
-# Función de prueba para el LLM
-def generate_response(user_input, chat_history):
-    return generate_rag_response(user_input, st.session_state.vector_store)
 
-# Entrada del usuario con diseño verde
+# --- User Input and Response Generation ---
+
+# User input with green design
 prompt_container = st.container()
 with prompt_container:
-    prompt = st.chat_input("typing...", key="user_input")
+    # Ensure the key is unique if needed, but 'user_input' seems fine here
+    prompt = st.chat_input("Ask RAGtor-UPV anything...", key="user_input")
 
 if prompt:
     timestamp = datetime.now().strftime("%H:%M:%S")
-    
-    # Mostrar mensaje del usuario
-    with st.chat_message("user"):
-        st.markdown(f"""
-            <div style='display: flex; justify-content: space-between; margin-bottom: 8px;'>
-                <strong style='color: white;'>You</strong>
-                <small style='color: #c8e6c9;'>{timestamp}</small>
-            </div>
-            <div style='color: white;'>{prompt}</div>
-        """, unsafe_allow_html=True)
-    
+
+    # Add and display user message
     st.session_state.messages.append({
-        "role": "user", 
-        "message": prompt, 
-        "timestamp": timestamp
-    })
-    
-    # Respuesta del asistente
-    with st.chat_message("assistant"):
-        with st.spinner("Pensando..."):
-            # Obtener historial de chat
-            chat_history = [
-                {"role": m["role"], "content": m["message"]} 
-                for m in st.session_state.messages
-            ]
-            
-            # Generar respuesta usando el LLM
-            bot_response = generate_response(prompt, chat_history)
-            
-            # Mostrar respuesta
-            st.markdown(f"""
-                <div style='display: flex; justify-content: space-between; margin-bottom: 8px;'>
-                    <strong style='color: #1a3e2f;'>🦖 RAGtor-UPV</strong>
-                    <small style='color: #666;'>{timestamp}</small>
-                </div>
-                <div style='color: #333;'>{bot_response}</div>
-            """, unsafe_allow_html=True)
-    
-    st.session_state.messages.append({
-        "role": "assistant", 
-        "message": bot_response, 
+        "role": "user",
+        "message": prompt,
         "timestamp": timestamp
     })
 
-# Título principal con diseño verde
+    # Rerun to show the user message immediately
+    st.rerun()
+
+# After rerunning, if the last message was from the user, generate a bot response
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    # Use the PoliGPT client to get the response
+    with st.chat_message("assistant"):
+         with st.spinner("Pensando..."):
+            try:
+                # Call the actual query method from your PoliGPT instance
+                # NOTE: The example poli_gpt.py only shows query_poligpt taking the prompt.
+                # If your PoliGPT is designed to handle chat history for context,
+                # you might need to pass st.session_state.messages (excluding the last one)
+                # or a summary of the history to query_poligpt.
+                # Based on your example, we call it with just the prompt:
+                bot_response = poligpt_client.query_poligpt(st.session_state.messages[-1]["message"])
+
+            except Exception as e:
+                bot_response = f"Sorry, an error occurred while generating the response: {e}"
+                st.error(bot_response) # Display error in the chat bubble
+
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+
+            # Add assistant message to history
+            st.session_state.messages.append({
+                "role": "assistant",
+                "message": bot_response,
+                "timestamp": timestamp
+            })
+
+            # Rerun to show the bot response
+            st.rerun()
+
+
+# Título principal con diseño verde (footer section)
 st.markdown("""
-    <div style='background-color: #1a3e2f; padding: 20px; border-radius: 15px; margin-bottom: 30px;'>
-        <p style='color: #c8e6c9; text-align: center; margin: 5px 0 0;'>Our chatbot works wonderfully and will help you with most of your questions. However, please remember that as with any AI, some answers might not be completely accurate. We trust that its assistance will be valuable!</p>
+    <div style='background-color: #1a3e2f; padding: 20px; border-radius: 15px; margin-top: 30px;'>
+        <p style='color: #c8e6c9; text-align: center; margin: 0;'>Our chatbot works wonderfully and will help you with most of your questions. However, please remember that as with any AI, some answers might not be completely accurate. We trust that its assistance will be valuable!</p>
     </div>
 """, unsafe_allow_html=True)
