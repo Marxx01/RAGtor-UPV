@@ -1,55 +1,9 @@
-import sys
-
-# Lista para guardar los mensajes de error de importación
-missing_modules = []
-
-# --- Intentar importar cada módulo necesario ---
-
-try:
-    import faiss
-except ImportError:
-    missing_modules.append("faiss (Intenta instalar con: pip install faiss-cpu o pip install faiss-gpu)")
-
-try:
-    # Intentamos importar primero database_faiss_murta
-    import database_faiss_murta as faissdb
-    # Si falla, intentamos database_faiss
-except ImportError:
-    try:
-        import database_faiss as faissdb
-    except ImportError:
-        missing_modules.append("database_faiss_murta o database_faiss (Asegúrate de que alguno de estos archivos personalizados esté en tu directorio de proyecto)")
-
-try:
-    import database_sql as db
-except ImportError:
-    missing_modules.append("database_sql (Asegúrate de que este archivo personalizado esté en tu directorio de proyecto)")
-
-try:
-    import openai
-except ImportError:
-    missing_modules.append("openai (Intenta instalar con: pip install openai)")
-
-try:
-    from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-except ImportError:
-    missing_modules.append("langchain_huggingface (Intenta instalar con: pip install langchain-huggingface)")
-
-
-# --- Verificar si faltan módulos y salir si es necesario ---
-
-if missing_modules:
-    print("\n" + "="*60)
-    print("ERROR: Faltan uno o más módulos requeridos para ejecutar poli_gpt.py")
-    print("Por favor, instala los módulos listados a continuación:")
-    print("-" * 60)
-    for module_info in missing_modules:
-        print(f"- {module_info}")
-    print("="*60 + "\n")
-    sys.exit(1) # Sale del script con un código de error
-
-# Si llegamos aquí, todos los módulos se importaron correctamente
-print("Todos los módulos requeridos para poli_gpt.py importados correctamente.")
+# poli_gpt.py
+import faiss
+import database_faiss_murta as faissdb # o database_faiss as faissdb
+import database_sql as db
+import openai
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 
 class PoliGPT:
@@ -129,14 +83,14 @@ class PoliGPT:
             "- Si no hay información suficiente, indicarlo explícitamente"
         )
 
-# Ejemplo de uso desde otro script:
-if __name__ == "__main__":
-    # Inicialización
-    poligpt = PoliGPT()
+# # Ejemplo de uso desde otro script:
+# if __name__ == "__main__":
+#     # Inicialización
+#     poligpt = PoliGPT()
     
-    # Consulta de ejemplo
-    query = "¿Cuántas horas de prácticas curriculares equivalen a un crédito ECTS?"
-    resultado = poligpt.query_poligpt(query)
+#     # Consulta de ejemplo
+#     query = "¿Cuántas horas de prácticas curriculares equivalen a un crédito ECTS?"
+#     resultado = poligpt.query_poligpt(query)
     
-    print("\nRespuesta:", resultado['response'])
-    print("\nContexto usado (ID):", resultado['context_used'])
+#     print("\nRespuesta:", resultado['response'])
+#     print("\nContexto usado (ID):", resultado['context_used'])
