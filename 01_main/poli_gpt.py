@@ -1,12 +1,12 @@
 # poli_gpt.py
 import database_faiss_murta as faissdb # o database_faiss as faissdb
-import database_sql as db
+#import database_sql as db
 import openai
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 
 class PoliGPT:
-    def __init__(self, faiss_index_dir='../01_data/project_faiss'):
+    def __init__(self, faiss_index_dir='./01_data/project_faiss'):
         # Configuración inicial
         self.model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
         self.client = openai.OpenAI(
