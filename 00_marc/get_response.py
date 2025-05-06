@@ -29,56 +29,58 @@ class PoliGPT:
         )
 
     def query_poligpt(self, query, k_context=3):
-        """
-        Consulta al sistema PoliGPT
-        Args:
-            query (str): Pregunta del usuario
-            k_context (int): Número de resultados contextuales a considerar
-        Returns:
-            dict: Respuesta estructurada
-        """
-        # Búsqueda de contexto
+        # 1 ) Buscar contexto
         results = self.vector_store.similarity_search_with_score(query, k=k_context)
-        
         if not results:
             return {"error": "No se encontró contexto relevante"}
-        
-        # Procesar resultados
-        contextos = [{
-            "id": doc.id,
-            "content": doc.page_content,
-            "score": score
-        } for doc, score in results]
-        
-        # Construir prompt
-        main_context = contextos[0]['content']
-        prompt = self._build_prompt(query, main_context)
-        
-        # Obtener respuesta
+
+        # 2 ) Construir lista de líneas con el formato deseado
+        lineas = []
+        for i, (doc, score) in enumerate(results, start=1):
+            lineas.append(f"- Contexto {i}: texto: {doc.page_content} score: {score:.4f}")
+
+        contextos_fmt = "Contextos usados:\n" + "\n".join(lineas)
+
+        # 3 ) Construir prompt usando el string recién creado
+        prompt = self._build_prompt(query, contextos_fmt)
+
+        # 4 ) Llamar al modelo
         response = self.client.chat.completions.create(
             model="poligpt",
             messages=[{"role": "user", "content": prompt}]
         )
-        
+
+        # 5 ) Devolver resultado con la clave correcta
         return {
             "query": query,
-            "context_used": contextos[0]['id'],
             "response": response.choices[0].message.content,
-            "contexts": contextos
+            "context_used": results
         }
 
     @staticmethod
-    def _build_prompt(query, context):
-        """Construye el prompt estructurado"""
+    def _build_prompt(query: str, context: str) -> str:
+        """Construye un prompt instruccional para normativa universitaria (ES)."""
         return (
-            "Responde EXCLUSIVAMENTE con la información del contexto proporcionado.\n\n"
-            f"Pregunta: {query}\n"
+            "Eres un **asistente académico** especializado en normativa y procedimientos "
+            "de la universidad.\n\n"
+            "════════ INSTRUCCIONES ════════\n"
+            "1. **Usa exclusivamente el CONTEXTO**; no inventes nada que no esté presente.\n"
+            "2. Incluye cifras, fechas o porcentajes *tal y como aparecen* en el contexto.\n"
+            "3. Cita textualmente la norma relevante entre comillas y añade la referencia "
+            "entre corchetes al final de la frase, p. ej.: \"…\" [Reglamento 2024, art. 5].\n"
+            "4. Si en el contexto no existe la información suficiente para contestar la respuesta, responde EXACTAMENTE:\n"
+            "   «No dispongo de información suficiente en el contexto proporcionado.»\n"
+            "5. Responde en el idioma de la respuesta.\n\n"
+            "════════ FORMATO DE SALIDA ════════\n"
+            "- Respuesta breve (máx. 3 frases) o lista con viñetas si hay varios puntos.\n"
+            "- Cada afirmación respaldada por una cita.\n"
+            "- No añadas secciones extra como \"Fuentes\" ni firmas.\n\n"
+            "════════ PREGUNTA ════════\n"
+            f"{query}\n\n"
+            "════════ CONTEXTO ════════\n"
+            "Ahora se va a suministrar los contextos relevantes para la respuesta, ten en cuenta que los contextos proporcionados con un menor score son los más relevantes para la pregunta formulada.\n"
             f"Contexto: {context}\n\n"
-            "Formato requerido:\n"
-            "- Respuesta directa y concisa\n"
-            "- Incluir valores numéricos cuando aplique\n"
-            "- Citar la normativa relevante\n"
-            "- Si no hay información suficiente, indicarlo explícitamente"
+            "════════ FIN ════════"
         )
 
 # Ejemplo de uso desde otro script:
