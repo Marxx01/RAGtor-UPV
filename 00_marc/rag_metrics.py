@@ -50,6 +50,18 @@ y referencia.
 - cosine_similarity: Similaridad entre la representación vectorial de la respuesta y la referencia,
   usando el modelo de lenguaje para calcular la distancia entre ambos textos.
 
+Interpretación: entre 0 y 1; un valor alto indica que la respuesta generada es semánticamente
+similar a la referencia. Útil para evaluar respuestas que pueden no coincidir palabra por palabra,
+pero que son semánticamente equivalentes.
+
+- avg_l2_distance: Distancia L2 promedio entre la representación vectorial de la respuesta y la
+  referencia, usando el modelo de lenguaje para calcular la distancia entre ambos textos.
+  Interpretación: entre 0 y 1; un valor bajo indica que la respuesta generada es semánticamente
+  similar a la referencia. Útil para evaluar respuestas que pueden no coincidir palabra por palabra,
+  pero que son semánticamente equivalentes.
+
+
+
 
 Interpretación: capta solapamientos de secuencias (no solo multiconjunto). Un LCS largo implica 
 que la predicción respeta gran parte del orden y la estructura de la referencia.
@@ -60,17 +72,16 @@ import re
 import string
 from collections import Counter
 from typing import Iterable, List, Mapping, Sequence
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from tqdm import tqdm
 
 ###############################################################################
 # Text normalization and tokenization
 ###############################################################################
 
 def _normalize(text: str) -> str:
-    """Lower‑case, strip punctuation and collapse whitespace."""
+    """Lower-case, strip punctuation and collapse whitespace."""
     text = text.lower()
     text = re.sub(f"[{re.escape(string.punctuation)}]", " ", text)
     text = re.sub(r"\s+", " ", text)
@@ -84,8 +95,10 @@ def _tokenize(text: str) -> List[str]:
 def _tokenize_llm(text: str, tokenizer_name: str) -> List[str]:
     """Tokenize using LLM tokenizer using sentence transformer model from huggingface"""
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    tokens = tokenizer.tokenize(text)
-    return tokens
+    model = AutoModel.from_pretrained(tokenizer_name)
+    inputs = tokenizer(text, return_tensors="pt")
+    outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(dim=1).detach().numpy()
 
 ###############################################################################
 # Reference‑free metrics (no ground truth answer required)
@@ -185,10 +198,42 @@ def cosine_similarity_score(prediction: str, reference: str, model = "sentence-t
     """Compute cosine similarity between prediction and reference using LLM embeddings."""
     pred_tokens = _tokenize_llm(prediction, model)
     ref_tokens = _tokenize_llm(reference, model)
-    if not pred_tokens or not ref_tokens:
+    if not pred_tokens.size or not ref_tokens.size:
         return 0.0
-    pred_vector = model.encode(pred_tokens)
-    ref_vector = model.encode(ref_tokens)
-    pred_vector = np.array(pred_vector).reshape(1, -1)
-    ref_vector = np.array(ref_vector).reshape(1, -1)
-    return float(cosine_similarity(pred_vector, ref_vector)[0][0])
+    pred_vector = np.array(pred_tokens).reshape(1, -1)
+    ref_vector = np.array(ref_tokens).reshape(1, -1)
+    similarity = float(cosine_similarity(pred_vector, ref_vector)[0][0])
+    return similarity
+
+def cosine_similarity_score_context(prediction: str, context: List[str], model = "sentence-transformers/LaBSE") -> float:
+    """Compute cosine similarity between prediction and context using LLM embeddings."""
+    pred_tokens = _tokenize_llm(prediction, model)
+    ctx_tokens = [_tokenize_llm(ctx, model) for ctx in context]
+    if not pred_tokens.size or not ctx_tokens:
+        return 0.0
+    pred_vector = np.array(pred_tokens).reshape(1, -1)
+    ctx_vectors = np.array(ctx_tokens).reshape(len(ctx_tokens), -1)
+    similarities = cosine_similarity(pred_vector, ctx_vectors)
+    return float(similarities.mean())
+
+def avg_l2_distance(prediction: str, reference: str, model = "sentence-transformers/LaBSE") -> float:
+    """Compute average L2 distance between prediction and reference using LLM embeddings."""
+    pred_tokens = _tokenize_llm(prediction, model)
+    ref_tokens = _tokenize_llm(reference, model)
+    if not pred_tokens.size or not ref_tokens.size:
+        return 0.0
+    pred_vector = np.array(pred_tokens).reshape(1, -1)
+    ref_vector = np.array(ref_tokens).reshape(1, -1)
+    distance = np.linalg.norm(pred_vector - ref_vector)
+    return float(distance.mean())
+
+def avg_l2_distance_context(prediction: str, context: List[str], model = "sentence-transformers/LaBSE") -> float:
+    """Compute average L2 distance between prediction and context using LLM embeddings."""
+    pred_tokens = _tokenize_llm(prediction, model)
+    ctx_tokens = [_tokenize_llm(ctx, model) for ctx in context]
+    if not pred_tokens.size or not ctx_tokens:
+        return 0.0
+    pred_vector = np.array(pred_tokens).reshape(1, -1)
+    ctx_vectors = np.array(ctx_tokens).reshape(len(ctx_tokens), -1)
+    distances = np.linalg.norm(pred_vector - ctx_vectors, axis=1)
+    return float(distances.mean())
