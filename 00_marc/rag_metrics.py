@@ -47,6 +47,10 @@ la misma información (p. ej. distinto orden, sinónimos).
 - rouge_l_score: ROUGE-L basado en la longest common subsequence (LCS) de tokens entre predicción
 y referencia.
 
+- cosine_similarity: Similaridad entre la representación vectorial de la respuesta y la referencia,
+  usando el modelo de lenguaje para calcular la distancia entre ambos textos.
+
+
 Interpretación: capta solapamientos de secuencias (no solo multiconjunto). Un LCS largo implica 
 que la predicción respeta gran parte del orden y la estructura de la referencia.
 """
@@ -56,6 +60,10 @@ import re
 import string
 from collections import Counter
 from typing import Iterable, List, Mapping, Sequence
+from transformers import AutoTokenizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+from tqdm import tqdm
 
 ###############################################################################
 # Text normalization and tokenization
@@ -72,6 +80,12 @@ def _normalize(text: str) -> str:
 def _tokenize(text: str) -> List[str]:
     """Split normalized text on whitespace."""
     return _normalize(text).split()
+
+def _tokenize_llm(text: str, tokenizer_name: str) -> List[str]:
+    """Tokenize using LLM tokenizer using sentence transformer model from huggingface"""
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    tokens = tokenizer.tokenize(text)
+    return tokens
 
 ###############################################################################
 # Reference‑free metrics (no ground truth answer required)
@@ -167,53 +181,14 @@ def rouge_l_score(prediction: str, reference: str) -> float:
         return 0.0
     return 2 * p * r / (p + r)
 
-###############################################################################
-# Dataset evaluation
-###############################################################################
-
-def evaluate_dataset(records: Iterable[Mapping[str, object]]) -> Mapping[str, float]:
-    """Aggregate RAG reference-free metrics across records."""
-    gs, f1s, sims = [], [], []
-    for rec in records:
-        a = str(rec["respuesta"])
-        ctx = rec["contextos"]
-        q = str(rec["pregunta"])
-        gs.append(grounding_score(a, ctx))
-        f1s.append(context_overlap_f1(a, ctx))
-        sims.append(question_context_similarity(q, ctx))
-    n = max(len(gs), 1)
-    return {
-        "GroundingScore": sum(gs)/n,
-        "ContextOverlapF1": sum(f1s)/n,
-        "QuestionContextSim": sum(sims)/n
-    }
-
-
-def evaluate_with_references(records: Iterable[Mapping[str, object]]) -> Mapping[str, float]:
-    """Aggregate both reference-based and reference-free metrics.  
-    Records must include keys:
-      - "respuesta" (prediction)
-      - "reference" (ground truth answer)
-      - "pregunta", "contextos"
-    """
-    ems, f1_r, rouge_l, gs, f1s, sims = [], [], [], [], [], []
-    for rec in records:
-        pred = str(rec["respuesta"])
-        ref  = str(rec.get("reference", ""))
-        ctx  = rec.get("contextos", [])
-        q    = str(rec.get("pregunta", ""))
-        ems.append(exact_match_score(pred, ref))
-        f1_r.append(token_f1_score(pred, ref))
-        rouge_l.append(rouge_l_score(pred, ref))
-        gs.append(grounding_score(pred, ctx))
-        f1s.append(context_overlap_f1(pred, ctx))
-        sims.append(question_context_similarity(q, ctx))
-    n = max(len(ems), 1)
-    return {
-        "ExactMatch": sum(ems)/n,
-        "TokenF1":    sum(f1_r)/n,
-        "ROUGE_L":    sum(rouge_l)/n,
-        "GroundingScore":  sum(gs)/n,
-        "ContextOverlapF1":  sum(f1s)/n,
-        "QuestionContextSim": sum(sims)/n
-    }
+def cosine_similarity_score(prediction: str, reference: str, model = "sentence-transformers/LaBSE") -> float:
+    """Compute cosine similarity between prediction and reference using LLM embeddings."""
+    pred_tokens = _tokenize_llm(prediction, model)
+    ref_tokens = _tokenize_llm(reference, model)
+    if not pred_tokens or not ref_tokens:
+        return 0.0
+    pred_vector = model.encode(pred_tokens)
+    ref_vector = model.encode(ref_tokens)
+    pred_vector = np.array(pred_vector).reshape(1, -1)
+    ref_vector = np.array(ref_vector).reshape(1, -1)
+    return float(cosine_similarity(pred_vector, ref_vector)[0][0])
