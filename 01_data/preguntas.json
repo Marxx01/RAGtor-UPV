@@ -1,0 +1,78 @@
+[
+    {
+      "pdf": "2024202400163500002155.pdf",
+      "preguntas": [
+        {
+          "pagina": 1,
+          "pregunta": "¿Qué órgano aprobó la Política de Seguridad de la Información y en qué fecha?",
+          "respuesta": "La aprobó el Consell de Govern de la Universitat Politècnica de València el 6 de junio de 2024."
+        },
+        {
+          "pagina": 5,
+          "pregunta": "Según los principios básicos, ¿qué principio exige revisar y actualizar de forma periódica las medidas de seguridad?",
+          "respuesta": "El principio de “Mejora continua”."
+        }
+      ]
+    },
+    {
+      "pdf": "2024202400163200002149.pdf",
+      "preguntas": [
+        {
+          "pagina": 2,
+          "pregunta": "¿Qué porcentaje se establece preferentemente como umbral de aprobado en las pruebas?",
+          "respuesta": "El 50% de la puntuación máxima posible."
+        },
+        {
+          "pagina": 2,
+          "pregunta": "Para los subgrupos C2, C1 y B, ¿cuál es el número máximo de pruebas en la fase de Oposición y qué peso tiene cada una?",
+          "respuesta": "Dos pruebas como máximo, y cada una computa el mismo peso sobre la nota global."
+        }
+      ]
+    },
+    {
+      "pdf": "2021015300125400001391.pdf",
+      "preguntas": [
+        {
+          "pagina": 99,
+          "pregunta": "¿En qué fecha se aprobó la modificación de la normativa del Procedimiento Mistral?",
+          "respuesta": "El 23 de diciembre de 2021."
+        },
+        {
+          "pagina": 99,
+          "pregunta": "Según la nueva redacción del artículo 8.4, ¿cuánto tiempo tiene una Delegación de Alumnos para iniciar un Informe Mistral desde que se reúnen las condiciones?",
+          "respuesta": "Diez días naturales, excluido agosto."
+        }
+      ]
+    },
+    {
+      "pdf": "2024202400160700002099.pdf",
+      "preguntas": [
+        {
+          "pagina": 1,
+          "pregunta": "¿A qué redes universitarias de promoción de la salud pertenece la UPV según la introducción?",
+          "respuesta": "A la Red Española de Universidades Promotoras de Salud (REUPS) y a la Xarxa Valenciana d’Universitats Públiques Saludables."
+        },
+        {
+          "pagina": 2,
+          "pregunta": "¿Qué porcentaje de los casos de cáncer de pulmón y laringe se atribuye al tabaco?",
+          "respuesta": "Más del 80 %."
+        }
+      ]
+    },
+    {
+      "pdf": "2024202400157200002028.pdf",
+      "preguntas": [
+        {
+          "pagina": 1,
+          "pregunta": "¿Cuál es el nombre del nuevo departamento resultante de la fusión?",
+          "respuesta": "Departamento de Ingeniería de los Transportes y del Terreno (DITT)."
+        },
+        {
+          "pagina": 1,
+          "pregunta": "¿En qué fecha se aprobó el acuerdo de fusión por el Consejo de Gobierno?",
+          "respuesta": "El 1 de febrero de 2024."
+        }
+      ]
+    }
+  ]
+  

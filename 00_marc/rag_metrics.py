@@ -1,144 +1,219 @@
 # rag_metrics.py
-"""Utility functions to evaluate a Retrieval‑Augmented Generation (RAG) pipeline **when you do NOT have a ground‑truth (referencia) answer**.
+# Utility functions to evaluate a Retrieval‑Augmented Generation (RAG) pipeline.
+# Supports both reference‑free metrics (grounding, overlap, retrieval relevance)
+# and reference‑based metrics (EM, token‑F1, ROUGE-L) when labels are available.
 
-Each record produced by your system must contain at least these keys::
-
-    {
-        "pregunta": "...",          # The user question
-        "respuesta": "...",        # The model answer
-        "contextos": ["...", ...]  # Ranked list of retrieved context strings
-    }
-
-Provided metrics (all range 0‑1)
---------------------------------
-1. **grounding_score** – Precision‑style metric: proportion of *answer* tokens that appear in any retrieved context, i.e. how well the answer is supported by the evidence.
-2. **context_overlap_f1** – Symmetric F1 between answer tokens and context tokens (harmonic mean of *grounding precision* and *context coverage recall*). High only if the answer both draws from and covers the retrieved information.
-3. **question_context_similarity** – Token‑level F1 between the *question* and the aggregated *contexts*; measures how relevant the retrieved contexts are for the user query.
-
-Example::
-
-    >>> record = {
-    ...     "pregunta": "¿Capital de Francia?",
-    ...     "respuesta": "París es la capital francesa.",
-    ...     "contextos": ["París es la capital y ciudad más grande de Francia."]
-    ... }
-    >>> import rag_metrics as rm
-    >>> rm.grounding_score(record["respuesta"], record["contextos"])
-    1.0
-    >>> rm.context_overlap_f1(record["respuesta"], record["contextos"])
-    0.8
-    >>> rm.question_context_similarity(record["pregunta"], record["contextos"])
-    0.6
-
-You can aggregate these over a dataset with **evaluate_dataset**.
 """
-from __future__ import annotations
+Métricas reference-free
+No requieren respuesta de referencia; evalúan únicamente la relación entre la respuesta generada y 
+los contextos recuperados o la pregunta.
 
+- grounding_score: Qué mide: la proporción de tokens de la respuesta que aparecen en cualquiera de los 
+textos de contexto.
+
+Interpretación: entre 0 y 1; un valor alto (cercano a 1) indica que casi todas las palabras de la 
+respuesta están “fundamentadas” en el material recuperado, reduciendo el riesgo de invención 
+(alucinaciones).
+
+- context_overlap_f1: Qué mide: la F1 entre los tokens de la respuesta y los tokens de los textos de
+contexto recuperados.
+
+Interpretación:  alto si la respuesta usa bien la información disponible (precisión) y al mismo 
+tiempo refleja buena parte de lo recuperado (cobertura).
+
+- question_context_similarity: F1 token-level entre la pregunta y la concatenación de los contextos 
+recuperados.
+
+Interpretación: refleja qué tan relevantes son realmente los fragmentos recuperados para responder 
+al usuario. Un valor cercano a 1 significa que gran parte del texto de contexto comparte vocabulario 
+clave con la pregunta.
+
+Métricas reference-based
+
+Requieren que cada registro lleve un campo "reference" con la respuesta correcta conocida.
+
+- exact_match_score (EM): coincidencia exacta entre la respuesta generada y la referencia, 
+tras normalizar (minusculas, quitar puntuación).
+
+Interpretación: binaria (0 o 1). Es la métrica más estricta: solo acepta respuestas textuales 
+idénticas.
+
+- token_f1_score:  F1 entre los tokens de la predicción y los de la referencia, cuantificando 
+solapamiento parcial.
+
+Interpretación: útil cuando la respuesta puede expresarse con palabras distintas pero comparte 
+la misma información (p. ej. distinto orden, sinónimos).
+
+- rouge_l_score: ROUGE-L basado en la longest common subsequence (LCS) de tokens entre predicción
+y referencia.
+
+Interpretación: capta solapamientos de secuencias (no solo multiconjunto). Un LCS largo implica 
+que la predicción respeta gran parte del orden y la estructura de la referencia.
+"""
+
+from __future__ import annotations
 import re
 import string
 from collections import Counter
-from typing import Iterable, List, Mapping
+from typing import Iterable, List, Mapping, Sequence
 
 ###############################################################################
-# Text normalisation helpers
+# Text normalization and tokenization
 ###############################################################################
 
 def _normalize(text: str) -> str:
-    """Lower‑case, strip punctuation/extra whitespace and normalise accents."""
+    """Lower‑case, strip punctuation and collapse whitespace."""
     text = text.lower()
-    # Replace punctuation with spaces so words stay separated
     text = re.sub(f"[{re.escape(string.punctuation)}]", " ", text)
-    # Collapse repeated whitespace
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
 def _tokenize(text: str) -> List[str]:
-    """Normalise and split on whitespace."""
+    """Split normalized text on whitespace."""
     return _normalize(text).split()
 
 ###############################################################################
-# Metric 1 – Grounding Score (precision)
+# Reference‑free metrics (no ground truth answer required)
 ###############################################################################
 
 def grounding_score(answer: str, contexts: Iterable[str]) -> float:
-    """Fraction of *answer* tokens that appear in the concatenation of *contexts*."""
-    ans_toks = _tokenize(answer)
-    if not ans_toks:
+    """Precision: proportion of answer tokens present in retrieved contexts."""
+    ans = _tokenize(answer)
+    if not ans:
         return 0.0
-    ctx_tokens = set(_tokenize(" ".join(contexts)))
-    supported = sum(1 for tok in ans_toks if tok in ctx_tokens)
-    return supported / len(ans_toks)
+    ctx = set(_tokenize(" ".join(contexts)))
+    supported = sum(1 for t in ans if t in ctx)
+    return supported / len(ans)
 
-###############################################################################
-# Metric 2 – Context‑Overlap F1 (utilisation)
-###############################################################################
 
 def context_overlap_f1(answer: str, contexts: Iterable[str]) -> float:
-    """Harmonic mean of (i) how much of the answer is in contexts (precision) and
-    (ii) how much of the contexts is used in the answer (recall)."""
-    ans_toks = _tokenize(answer)
-    ctx_toks = _tokenize(" ".join(contexts))
-    if not ans_toks or not ctx_toks:
+    """F1 between answer tokens and context tokens (utilisation)."""
+    ans = _tokenize(answer)
+    ctx = _tokenize(" ".join(contexts))
+    if not ans or not ctx:
         return 0.0
-    common = Counter(ans_toks) & Counter(ctx_toks)
-    num_same = sum(common.values())
-    if num_same == 0:
+    common = Counter(ans) & Counter(ctx)
+    n_same = sum(common.values())
+    if n_same == 0:
         return 0.0
-    precision = num_same / len(ans_toks)      # == grounding_score
-    recall = num_same / len(ctx_toks)         # context coverage
-    return 2 * precision * recall / (precision + recall)
+    p = n_same / len(ans)
+    r = n_same / len(ctx)
+    return 2 * p * r / (p + r)
 
-###############################################################################
-# Metric 3 – Question‑Context Similarity (retrieval relevance)
-###############################################################################
 
 def question_context_similarity(question: str, contexts: Iterable[str]) -> float:
-    """Token‑level F1 between the *question* and the concatenated *contexts*."""
-    q_toks = _tokenize(question)
-    ctx_toks = _tokenize(" ".join(contexts))
-    if not q_toks or not ctx_toks:
+    """F1 between question and retrieved contexts (relevance)."""
+    q = _tokenize(question)
+    ctx = _tokenize(" ".join(contexts))
+    if not q or not ctx:
         return 0.0
-    common = Counter(q_toks) & Counter(ctx_toks)
-    num_same = sum(common.values())
-    if num_same == 0:
+    common = Counter(q) & Counter(ctx)
+    n_same = sum(common.values())
+    if n_same == 0:
         return 0.0
-    precision = num_same / len(q_toks)
-    recall = num_same / len(ctx_toks)
-    return 2 * precision * recall / (precision + recall)
+    p = n_same / len(q)
+    r = n_same / len(ctx)
+    return 2 * p * r / (p + r)
 
 ###############################################################################
-# Convenience – Evaluate an entire dataset
+# Reference‑based metrics (requires labeled ground truth answer)
+###############################################################################
+
+def exact_match_score(prediction: str, reference: str) -> float:
+    """Binary exact match after normalization."""
+    return float(_normalize(prediction) == _normalize(reference))
+
+
+def token_f1_score(prediction: str, reference: str) -> float:
+    """Token-level F1 between prediction and reference."""
+    pred_tokens = _tokenize(prediction)
+    ref_tokens = _tokenize(reference)
+    if not pred_tokens or not ref_tokens:
+        return 0.0
+    common = Counter(pred_tokens) & Counter(ref_tokens)
+    n_same = sum(common.values())
+    if n_same == 0:
+        return 0.0
+    p = n_same / len(pred_tokens)
+    r = n_same / len(ref_tokens)
+    return 2 * p * r / (p + r)
+
+
+def _lcs_length(a: Sequence[str], b: Sequence[str]) -> int:
+    """Compute length of longest common subsequence between two token lists."""
+    # dynamic programming
+    m, n = len(a), len(b)
+    dp = [[0] * (n+1) for _ in range(m+1)]
+    for i in range(m):
+        for j in range(n):
+            if a[i] == b[j]:
+                dp[i+1][j+1] = dp[i][j] + 1
+            else:
+                dp[i+1][j+1] = max(dp[i][j+1], dp[i+1][j])
+    return dp[m][n]
+
+
+def rouge_l_score(prediction: str, reference: str) -> float:
+    """Compute ROUGE-L score based on LCS."""
+    pred_tokens = _tokenize(prediction)
+    ref_tokens = _tokenize(reference)
+    if not pred_tokens or not ref_tokens:
+        return 0.0
+    lcs = _lcs_length(pred_tokens, ref_tokens)
+    p = lcs / len(pred_tokens)
+    r = lcs / len(ref_tokens)
+    if p + r == 0:
+        return 0.0
+    return 2 * p * r / (p + r)
+
+###############################################################################
+# Dataset evaluation
 ###############################################################################
 
 def evaluate_dataset(records: Iterable[Mapping[str, object]]) -> Mapping[str, float]:
-    """Aggregate the three metrics over an iterable of RAG records."""
-    g_scores, f1s, qc_sims = [], [], []
+    """Aggregate RAG reference-free metrics across records."""
+    gs, f1s, sims = [], [], []
     for rec in records:
-        answer = str(rec["respuesta"])
-        contexts = rec["contextos"]
-        question = str(rec["pregunta"])
-        g_scores.append(grounding_score(answer, contexts))
-        f1s.append(context_overlap_f1(answer, contexts))
-        qc_sims.append(question_context_similarity(question, contexts))
-    n = max(len(g_scores), 1)
+        a = str(rec["respuesta"])
+        ctx = rec["contextos"]
+        q = str(rec["pregunta"])
+        gs.append(grounding_score(a, ctx))
+        f1s.append(context_overlap_f1(a, ctx))
+        sims.append(question_context_similarity(q, ctx))
+    n = max(len(gs), 1)
     return {
-        "Grounding": sum(g_scores) / n,
-        "ContextOverlapF1": sum(f1s) / n,
-        "QuestionContextSim": sum(qc_sims) / n,
+        "GroundingScore": sum(gs)/n,
+        "ContextOverlapF1": sum(f1s)/n,
+        "QuestionContextSim": sum(sims)/n
     }
 
-###############################################################################
-# CLI entry‑point (optional) – evaluate a JSONL file
-###############################################################################
 
-if __name__ == "__main__":
-    import json, sys, pathlib, argparse
-
-    p = argparse.ArgumentParser(description="Evaluate RAG outputs (no reference answer required).")
-    p.add_argument("file", type=pathlib.Path, help="Path to JSONL with RAG records (one per line)")
-    args = p.parse_args()
-    with args.file.open() as f:
-        records = [json.loads(line) for line in f if line.strip()]
-    metrics = evaluate_dataset(records)
-    print(json.dumps(metrics, indent=2, ensure_ascii=False))
+def evaluate_with_references(records: Iterable[Mapping[str, object]]) -> Mapping[str, float]:
+    """Aggregate both reference-based and reference-free metrics.  
+    Records must include keys:
+      - "respuesta" (prediction)
+      - "reference" (ground truth answer)
+      - "pregunta", "contextos"
+    """
+    ems, f1_r, rouge_l, gs, f1s, sims = [], [], [], [], [], []
+    for rec in records:
+        pred = str(rec["respuesta"])
+        ref  = str(rec.get("reference", ""))
+        ctx  = rec.get("contextos", [])
+        q    = str(rec.get("pregunta", ""))
+        ems.append(exact_match_score(pred, ref))
+        f1_r.append(token_f1_score(pred, ref))
+        rouge_l.append(rouge_l_score(pred, ref))
+        gs.append(grounding_score(pred, ctx))
+        f1s.append(context_overlap_f1(pred, ctx))
+        sims.append(question_context_similarity(q, ctx))
+    n = max(len(ems), 1)
+    return {
+        "ExactMatch": sum(ems)/n,
+        "TokenF1":    sum(f1_r)/n,
+        "ROUGE_L":    sum(rouge_l)/n,
+        "GroundingScore":  sum(gs)/n,
+        "ContextOverlapF1":  sum(f1s)/n,
+        "QuestionContextSim": sum(sims)/n
+    }
