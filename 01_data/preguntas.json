@@ -4,8 +4,8 @@
       "preguntas": [
         {
           "pagina": 1,
-          "pregunta": "¿Qué órgano aprobó la Política de Seguridad de la Información y en qué fecha?",
-          "respuesta": "La aprobó el Consell de Govern de la Universitat Politècnica de València el 6 de junio de 2024."
+          "pregunta": "Nomena els primers objectius de la seguretat de la informació es defineixen a la Universitat Politècnica?",
+          "respuesta": "- Garantir la qualitat i protecció de la informació.\n - Aconseguir la plena conscienciació dels usuaris respecte a la seguretat de la informació.\n -Gestió d’actius d’informació\n - Seguretat lligada a les persones\n - Seguretat física\n - Seguretat en la gestió de comunicacions i operacions \n - Control d’accés\n"
         },
         {
           "pagina": 5,
@@ -35,12 +35,12 @@
         {
           "pagina": 99,
           "pregunta": "¿En qué fecha se aprobó la modificación de la normativa del Procedimiento Mistral?",
-          "respuesta": "El 23 de diciembre de 2021."
+          "respuesta": "El 15 de diciembre de 2016"
         },
         {
           "pagina": 99,
           "pregunta": "Según la nueva redacción del artículo 8.4, ¿cuánto tiempo tiene una Delegación de Alumnos para iniciar un Informe Mistral desde que se reúnen las condiciones?",
-          "respuesta": "Diez días naturales, excluido agosto."
+          "respuesta": "Diez días naturales, excluido agosto, desde el momento en el que se reúnen las condiciones para su tramitación"
         }
       ]
     },
@@ -53,9 +53,9 @@
           "respuesta": "A la Red Española de Universidades Promotoras de Salud (REUPS) y a la Xarxa Valenciana d’Universitats Públiques Saludables."
         },
         {
-          "pagina": 2,
-          "pregunta": "¿Qué porcentaje de los casos de cáncer de pulmón y laringe se atribuye al tabaco?",
-          "respuesta": "Más del 80 %."
+          "pagina": 4,
+          "pregunta": "Es pot fumar tabac, o productes similars als espais de la Universitat?",
+          "respuesta": "No. Segons l’acord del Consell de Govern de la UPV, està prohibit fumar tabac i altres productes similars en els espais de la Universitat. Aquesta mesura respon a la voluntat d’avançar cap a una universitat lliure de fums, protegint tant la salut de qui fuma com la de les persones que l’envolten i el medi ambient, dins del marc del projecte “UPV espai sense fum” (#UPVsensefum)."
         }
       ]
     },
@@ -64,12 +64,12 @@
       "preguntas": [
         {
           "pagina": 1,
-          "pregunta": "¿Cuál es el nombre del nuevo departamento resultante de la fusión?",
+          "pregunta": "¿Cuál es el nombre del nuevo departamento resultante de la fusión entre los Departamentos de Ingeniería e Infraestructura de los Transportes e Ingeniería del Terreno?",
           "respuesta": "Departamento de Ingeniería de los Transportes y del Terreno (DITT)."
         },
         {
           "pagina": 1,
-          "pregunta": "¿En qué fecha se aprobó el acuerdo de fusión por el Consejo de Gobierno?",
+          "pregunta": "¿En qué fecha se aprobó el acuerdo de fusión del departamento de Ingeniería de los Transportes y del Terreno (DITT), por el Consejo de Gobierno?",
           "respuesta": "El 1 de febrero de 2024."
         }
       ]

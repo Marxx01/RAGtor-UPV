@@ -4,9 +4,9 @@ import openai
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 class PoliGPT:
-    def __init__(self, faiss_index_dir='./01_data/project_faiss'):
+    def __init__(self, faiss_index_dir='./01_data/project_faiss', model_name="sentence-transformers/LaBSE"):
         # Configuración inicial
-        self.model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
+        self.model = HuggingFaceEmbeddings(model_name=model_name)
         self.client = openai.OpenAI(
             api_key="sk-1C-hWjmHEW05iQjwmr9EnA",
             base_url="https://api.poligpt.upv.es"
@@ -68,7 +68,7 @@ class PoliGPT:
             "2. Intenta responder con la mayor cantidad de palabras exactas a al contexto.\n"
             "3. Incluye cifras, fechas o porcentajes *tal y como aparecen* en el contexto.\n"
             "4. Cita textualmente la norma relevante entre comillas y añade la referencia "
-            "entre corchetes al final de la frase, p.ej.: \"…\" [Reglamento 2024, art. 5].\n"
+            "entre corchetes al final de la frase, p.ej.: \"…\" [Reglamento 2024, art.5].\n"
             "5. Si en el contexto no existe la información suficiente para contestar la respuesta, responde EXACTAMENTE:\n"
             "   «No dispongo de información suficiente en el contexto proporcionado.»\n"
             "6. Responde en el idioma de la respuesta.\n\n"

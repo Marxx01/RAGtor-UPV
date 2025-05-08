@@ -194,7 +194,7 @@ def rouge_l_score(prediction: str, reference: str) -> float:
         return 0.0
     return 2 * p * r / (p + r)
 
-def cosine_similarity_score(prediction: str, reference: str, model = "sentence-transformers/LaBSE") -> float:
+def cosine_similarity_score(prediction: str, reference: str, model = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2") -> float:
     """Compute cosine similarity between prediction and reference using LLM embeddings."""
     pred_tokens = _tokenize_llm(prediction, model)
     ref_tokens = _tokenize_llm(reference, model)
@@ -205,7 +205,7 @@ def cosine_similarity_score(prediction: str, reference: str, model = "sentence-t
     similarity = float(cosine_similarity(pred_vector, ref_vector)[0][0])
     return similarity
 
-def cosine_similarity_score_context(prediction: str, context: List[str], model = "sentence-transformers/LaBSE") -> float:
+def cosine_similarity_score_context(prediction: str, context: List[str], model = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2") -> float:
     """Compute cosine similarity between prediction and context using LLM embeddings."""
     pred_tokens = _tokenize_llm(prediction, model)
     ctx_tokens = [_tokenize_llm(ctx, model) for ctx in context]
@@ -216,7 +216,7 @@ def cosine_similarity_score_context(prediction: str, context: List[str], model =
     similarities = cosine_similarity(pred_vector, ctx_vectors)
     return float(similarities.mean())
 
-def avg_l2_distance(prediction: str, reference: str, model = "sentence-transformers/LaBSE") -> float:
+def avg_l2_distance(prediction: str, reference: str, model = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2") -> float:
     """Compute average L2 distance between prediction and reference using LLM embeddings."""
     pred_tokens = _tokenize_llm(prediction, model)
     ref_tokens = _tokenize_llm(reference, model)
@@ -227,7 +227,7 @@ def avg_l2_distance(prediction: str, reference: str, model = "sentence-transform
     distance = np.linalg.norm(pred_vector - ref_vector)
     return float(distance.mean())
 
-def avg_l2_distance_context(prediction: str, context: List[str], model = "sentence-transformers/LaBSE") -> float:
+def avg_l2_distance_context(prediction: str, context: List[str], model = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2") -> float:
     """Compute average L2 distance between prediction and context using LLM embeddings."""
     pred_tokens = _tokenize_llm(prediction, model)
     ctx_tokens = [_tokenize_llm(ctx, model) for ctx in context]

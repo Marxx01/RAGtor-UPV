@@ -13,8 +13,24 @@ import database_sql as db
 import torch
 import faiss
 import fitz  # PyMuPDF
+import sys
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# =============================================================================
+
+# Comprobar si se han pasado argumentos al script
+if len(sys.argv) > 1:
+    # Si se han pasado argumentos, asignar los valores a las variables
+    MODEL_NAME = sys.argv[1]
+    CHUNK_SIZE = int(sys.argv[2])
+    CHUNK_OVERLAP = int(sys.argv[3])
+else:
+    MODEL_NAME = "sentence-transformers/LaBSE"
+    CHUNK_SIZE = 300
+    CHUNK_OVERLAP = 100
+
+
 
 # =============================================================================
 def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_faiss'):
@@ -71,7 +87,7 @@ def process_single_pdf(file_path: str, pdf_id: int, chunk_size: int, chunk_overl
         separators=["\n\n", "\n", ".", "!", "?", " ", ""]
     )
     filename = os.path.basename(file_path)
-    if filename[:4]>=2021:
+    if int(filename[:4])>=2021:
         try:
             with open(file_path, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
@@ -99,7 +115,7 @@ def process_single_pdf(file_path: str, pdf_id: int, chunk_size: int, chunk_overl
         except Exception as e:
             print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
     
-    elif filename[:4]<2006:
+    elif int(filename[:4])<2006:
         try:
             doc = fitz.open(file_path)
             for i, page in enumerate(doc, start=1):
@@ -160,7 +176,7 @@ def process_single_pdf(file_path: str, pdf_id: int, chunk_size: int, chunk_overl
             print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
     return pdf_chunks
 
-def read_pdfs_parallel(pdf_info_list: List[Tuple[str, int]], chunk_size: int = 500, chunk_overlap: int = 150, num_processes: int = None) -> List[Tuple[str, int, int]]:
+def read_pdfs_parallel(pdf_info_list: List[Tuple[str, int]], chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP, num_processes: int = None) -> List[Tuple[str, int, int]]:
     """
     Processes multiple PDFs in parallel using multiprocessing.Pool.
     """
@@ -274,7 +290,7 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     # Inicializa el modelo de embeddings configurando el dispositivo (si es soportado)
-    model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE", device=device)
+    model = HuggingFaceEmbeddings(model_name=MODEL_NAME, model_kwargs={"device": device})
 
     # Determinar la dimensión de los embeddings
     embedding_dim = len(model.embed_query("hello world"))
