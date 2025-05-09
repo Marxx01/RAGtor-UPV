@@ -1,0 +1,22 @@
+{
+    "model_name": "LaBSE",
+    "chunk_size": 300,
+    "chunk_overlap": 100,
+    "k": 6,
+    "metrics": {
+        "ExactMatch": 0.0,
+        "TokenF1": 0.18738267371726017,
+        "ROUGE_L": 0.15163481046939695,
+        "GroundingScore": 0.72342584292419,
+        "ContextOverlapF1": 0.3395291382158222,
+        "QuestionContextSim": 0.09774056944678103,
+        "CosineContextAnswer": 0.7128825336694717,
+        "CosineQuestionAnswer": 0.7315579652786255,
+        "CosineQuestionContext": 0.6840584576129913,
+        "CosineReferenceAnswer": 0.547378234565258,
+        "L2ContextAnswer": 19.632853388786316,
+        "L2QuestionAnswer": 19.29010498523712,
+        "L2QuestionContext": 20.79923439025879,
+        "L2ReferenceAnswer": 24.439196348190308
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "model_name": "paraphrase-multilingual-mpnet-base-v2",
+    "chunk_size": 300,
+    "chunk_overlap": 100,
+    "k": 2,
+    "metrics": {
+        "ExactMatch": 0.0,
+        "TokenF1": 0.14330447505133687,
+        "ROUGE_L": 0.11924717570438086,
+        "GroundingScore": 0.7352495824212809,
+        "ContextOverlapF1": 0.566466856985763,
+        "QuestionContextSim": 0.2637295408405404,
+        "CosineContextAnswer": 0.8973472595214844,
+        "CosineQuestionAnswer": 0.8800376176834106,
+        "CosineQuestionContext": 0.8456590294837951,
+        "CosineReferenceAnswer": 0.3889428094029427,
+        "L2ContextAnswer": 1.1704845786094666,
+        "L2QuestionAnswer": 1.315153217315674,
+        "L2QuestionContext": 1.4967771768569946,
+        "L2ReferenceAnswer": 2.860846519470215
+    }
+}

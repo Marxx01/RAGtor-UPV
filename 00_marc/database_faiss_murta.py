@@ -19,6 +19,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # =============================================================================
 
+
 # Comprobar si se han pasado argumentos al script
 if len(sys.argv) > 1:
     # Si se han pasado argumentos, asignar los valores a las variables

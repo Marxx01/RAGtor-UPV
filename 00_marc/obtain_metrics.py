@@ -40,6 +40,9 @@ for pregunta in preguntas:
         continue
     if respuesta['response'] != 'No dispongo de información suficiente en el contexto proporcionado.':
         respuestas.append(respuesta)
+    else:
+        print(f"Respuesta vacía para la pregunta: {pregunta}")
+        continue
 
 
 print(f"Número de respuestas obtenidas: {len(respuestas)}")
@@ -126,7 +129,7 @@ full_data = {
 name_safe = MODEL_NAME.split("/")[-1]
 full_data["model_name"] = name_safe
 
-with open(f"./00_marc/metrics_eval/metrics_{name_safe}_{CHUNK_SIZE}_{CHUNK_OVERLAP}_{K}.json", "w", encoding="utf-8") as f:
+with open(f"./00_marc/metricas_eval/metrics_{name_safe}_{CHUNK_SIZE}_{CHUNK_OVERLAP}_{K}.json", "w", encoding="utf-8") as f:
     json.dump(full_data, f, ensure_ascii=False, indent=4)
 
 print("Evaluación completada y guardada en el archivo JSON.")

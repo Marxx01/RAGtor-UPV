@@ -75,6 +75,7 @@ from typing import Iterable, List, Mapping, Sequence
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import torch
 
 ###############################################################################
 # Text normalization and tokenization
@@ -94,8 +95,8 @@ def _tokenize(text: str) -> List[str]:
 
 def _tokenize_llm(text: str, tokenizer_name: str) -> List[str]:
     """Tokenize using LLM tokenizer using sentence transformer model from huggingface"""
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    model = AutoModel.from_pretrained(tokenizer_name)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, device="cuda" if torch.cuda.is_available() else "cpu")
+    model = AutoModel.from_pretrained(tokenizer_name, *{"device": "cuda" if torch.cuda.is_available() else "cpu"})
     inputs = tokenizer(text, return_tensors="pt")
     outputs = model(**inputs)
     return outputs.last_hidden_state.mean(dim=1).detach().numpy()

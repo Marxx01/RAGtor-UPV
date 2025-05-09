@@ -1,0 +1,22 @@
+{
+    "model_name": "multi-qa-mpnet-base-dot-v1",
+    "chunk_size": 500,
+    "chunk_overlap": 150,
+    "k": 4,
+    "metrics": {
+        "ExactMatch": 0.0,
+        "TokenF1": 0.07790841484883779,
+        "ROUGE_L": 0.05624184315434426,
+        "GroundingScore": 0.7968835599125692,
+        "ContextOverlapF1": 0.43773195504216195,
+        "QuestionContextSim": 0.12511552145810842,
+        "CosineContextAnswer": 0.781259047985077,
+        "CosineQuestionAnswer": 0.8076223373413086,
+        "CosineQuestionContext": 0.7878975391387939,
+        "CosineReferenceAnswer": 0.5212757229804993,
+        "L2ContextAnswer": 3.5141499042510986,
+        "L2QuestionAnswer": 3.371963453292847,
+        "L2QuestionContext": 3.550714302062988,
+        "L2ReferenceAnswer": 5.366880226135254
+    }
+}
