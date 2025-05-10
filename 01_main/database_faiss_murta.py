@@ -12,8 +12,16 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import database_sql as db
 import torch
 import faiss
+import fitz  # PyMuPDF
+import sys
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# =============================================================================
+
+MODEL_NAME = "sentence-transformers/LaBSE"
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 150
 
 # =============================================================================
 def connect_faiss(embedding_model, index, faiss_index_dir='./01_data/project_faiss'):
@@ -69,35 +77,97 @@ def process_single_pdf(file_path: str, pdf_id: int, chunk_size: int, chunk_overl
         chunk_overlap=chunk_overlap,
         separators=["\n\n", "\n", ".", "!", "?", " ", ""]
     )
-    try:
-        with open(file_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            if reader.is_encrypted:
+    filename = os.path.basename(file_path)
+    if int(filename[:4])>=2021:
+        try:
+            with open(file_path, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                if reader.is_encrypted:
+                    try:
+                        reader.decrypt('')
+                    except Exception as decrypt_error:
+                        print(f"Warning: Could not decrypt {file_path} (ID: {pdf_id}). Skipping. Error: {decrypt_error}")
+                        return []
+                for page_num, page in enumerate(reader.pages, start=1):
+                    try:
+                        page_text = page.extract_text()
+                        if page_text:
+                            page_text = page_text.replace('\xa0', ' ').strip()  # Clean text
+                            page_chunks_split = splitter.split_text(page_text)
+                            for chunk in page_chunks_split:
+                                pdf_chunks.append((chunk, page_num, pdf_id))
+                    except Exception as page_error:
+                        print(f"Error processing page {page_num} of {file_path} (ID: {pdf_id}): {page_error}")
+                        continue
+        except FileNotFoundError:
+            print(f"Error: File not found {file_path} (ID: {pdf_id}). Skipping.")
+        except PyPDF2.errors.PdfReadError as pdf_error:
+            print(f"Error reading PDF structure {file_path} (ID: {pdf_id}): {pdf_error}. Skipping.")
+        except Exception as e:
+            print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
+    
+    elif int(filename[:4])<2006:
+        try:
+            doc = fitz.open(file_path)
+            for i, page in enumerate(doc, start=1):
                 try:
-                    reader.decrypt('')
-                except Exception as decrypt_error:
-                    print(f"Warning: Could not decrypt {file_path} (ID: {pdf_id}). Skipping. Error: {decrypt_error}")
-                    return []
-            for page_num, page in enumerate(reader.pages, start=1):
-                try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        page_text = page_text.replace('\xa0', ' ').strip()  # Clean text
-                        page_chunks_split = splitter.split_text(page_text)
-                        for chunk in page_chunks_split:
-                            pdf_chunks.append((chunk, page_num, pdf_id))
+                    rect = page.rect
+                    mitad_x = rect.width / 2
+
+                    col_izquierda = fitz.Rect(0, 0, mitad_x, rect.height)
+                    col_derecha = fitz.Rect(mitad_x, 0, rect.width, rect.height)
+
+                    text_left = page.get_text("text", clip=col_izquierda).strip()
+                    text_right = page.get_text("text", clip=col_derecha).strip()
+
+                    full_text = text_left + "\n" + text_right
+
+                    if full_text:
+                        page_chunks = splitter.split_text(full_text)
+                        for chunk in page_chunks:
+                            pdf_chunks.append((chunk, i, pdf_id))
                 except Exception as page_error:
-                    print(f"Error processing page {page_num} of {file_path} (ID: {pdf_id}): {page_error}")
+                    print(f"Error processing page {i} of {file_path} (ID: {pdf_id}): {page_error}")
                     continue
-    except FileNotFoundError:
-        print(f"Error: File not found {file_path} (ID: {pdf_id}). Skipping.")
-    except PyPDF2.errors.PdfReadError as pdf_error:
-        print(f"Error reading PDF structure {file_path} (ID: {pdf_id}): {pdf_error}. Skipping.")
-    except Exception as e:
-        print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
+            doc.close()
+        except FileNotFoundError:
+            print(f"Error: File not found {file_path} (ID: {pdf_id}). Skipping.")
+        except Exception as e:
+            print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
+
+
+    else:
+        try:
+            doc = fitz.open(file_path)
+            for i, page in enumerate(doc, start=1):
+                try:
+                    rect = page.rect
+                    mitad_x = rect.width / 2
+
+                    col_izquierda = fitz.Rect(0, 0, mitad_x, rect.height)
+                    col_derecha = fitz.Rect(mitad_x, 0, rect.width, rect.height)
+
+                    texto_val = page.get_text("text", clip=col_izquierda).strip()
+                    texto_cas = page.get_text("text", clip=col_derecha).strip()
+
+                    for chunk in splitter.split_text(texto_val):
+                        pdf_chunks.append((chunk, i, pdf_id))
+
+                    for chunk in splitter.split_text(texto_cas):
+                        pdf_chunks.append((chunk, i, pdf_id))
+
+                except Exception as page_error:
+                    print(f"Error processing page {i} of {file_path} (ID: {pdf_id}): {page_error}")
+                    continue
+            doc.close()
+
+        except FileNotFoundError:
+            print(f"Error: File not found {file_path} (ID: {pdf_id}). Skipping.")
+        except Exception as e:
+            print(f"Error processing {file_path} (ID: {pdf_id}): {e}. Skipping.")
     return pdf_chunks
 
-def read_pdfs_parallel(pdf_info_list: List[Tuple[str, int]], chunk_size: int = 500, chunk_overlap: int = 150, num_processes: int = None) -> List[Tuple[str, int, int]]:
+def read_pdfs_parallel(pdf_info_list: List[Tuple[str, int]], chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP, num_processes: int = None) -> List[Tuple[str, int, int]]:
     """
     Processes multiple PDFs in parallel using multiprocessing.Pool.
     """
@@ -211,7 +281,7 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     # Inicializa el modelo de embeddings configurando el dispositivo (si es soportado)
-    model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE", device=device)
+    model = HuggingFaceEmbeddings(model_name=MODEL_NAME, model_kwargs={"device": device})
 
     # Determinar la dimensión de los embeddings
     embedding_dim = len(model.embed_query("hello world"))

@@ -5,18 +5,18 @@
     "k": 6,
     "metrics": {
         "ExactMatch": 0.0,
-        "TokenF1": 0.2377599226560741,
-        "ROUGE_L": 0.18472655510501484,
-        "GroundingScore": 0.7677938045091872,
-        "ContextOverlapF1": 0.24538581338810472,
+        "TokenF1": 0.23032536744596166,
+        "ROUGE_L": 0.19402937023943978,
+        "GroundingScore": 0.7690876300245835,
+        "ContextOverlapF1": 0.22006368416725836,
         "QuestionContextSim": 0.06585107217477852,
-        "CosineContextAnswer": 0.7199102863669395,
-        "CosineQuestionAnswer": 0.7222965061664581,
+        "CosineContextAnswer": 0.7160674259066582,
+        "CosineQuestionAnswer": 0.7363583594560623,
         "CosineQuestionContext": 0.6624488532543182,
-        "CosineReferenceAnswer": 0.611705157905817,
-        "L2ContextAnswer": 19.15205955505371,
-        "L2QuestionAnswer": 19.470215559005737,
+        "CosineReferenceAnswer": 0.5808083154261112,
+        "L2ContextAnswer": 19.142948389053345,
+        "L2QuestionAnswer": 18.908483862876892,
         "L2QuestionContext": 21.08791971206665,
-        "L2ReferenceAnswer": 22.698264598846436
+        "L2ReferenceAnswer": 23.44952154159546
     }
 }

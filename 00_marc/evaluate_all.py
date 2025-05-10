@@ -1,9 +1,9 @@
 import os
 import shutil
 
-modelos = ["sentence-transformers/LaBSE", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2", "sentence-transformers/multi-qa-mpnet-base-dot-v1"]
-chunks = [(500, 150), (300, 100), (200, 50)]
-ks = [2, 4, 6]
+modelos = ["sentence-transformers/LaBSE"] #["sentence-transformers/LaBSE", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2", "sentence-transformers/multi-qa-mpnet-base-dot-v1"]
+chunks = [(500, 150)] #[(500, 150), (300, 100), (200, 50)]
+ks =  [6] #[2, 4, 6]
 
 for modelo in modelos:
     for chunk in chunks:

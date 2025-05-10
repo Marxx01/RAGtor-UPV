@@ -39,7 +39,7 @@ class PoliGPT:
         )
 
 
-    def query_poligpt(self, query, k_context=3):
+    def query_poligpt(self, query, k_context=6):
         """
         Consulta al sistema PoliGPT
         Args:
@@ -108,16 +108,30 @@ class PoliGPT:
 
 
     @staticmethod
-    def _build_prompt(query, context):
-        """Construye el prompt estructurado para el modelo"""
-        # You might want to adjust this prompt slightly depending on how you want the model
-        # to integrate the context. This is a basic example.
+    def _build_prompt(query: str, context: str) -> str:
+        """Construye un prompt instruccional para normativa universitaria (ES)."""
         return (
-            "Basándote EXCLUSIVAMENTE en la siguiente información de contexto, responde a la pregunta.\n"
-            "Si la información proporcionada no es suficiente para responder, indica que no tienes información sobre ese tema.\n\n"
-            f"Contexto:\n{context}\n\n"
-            f"Pregunta: {query}\n\n"
-            "Respuesta:"
+            "Eres un **asistente académico** especializado en normativa y procedimientos "
+            "de la universidad.\n\n"
+            "════════ INSTRUCCIONES ════════\n"
+            "1. **Usa exclusivamente el CONTEXTO**; no inventes nada que no esté presente.\n"
+            "2. Intenta responder con la mayor cantidad de palabras exactas a al contexto.\n"
+            "3. Incluye cifras, fechas o porcentajes *tal y como aparecen* en el contexto.\n"
+            "4. Cita textualmente la norma relevante entre comillas y añade la referencia "
+            "entre corchetes al final de la frase, p.ej.: \"…\" [Reglamento 2024, art.5].\n"
+            "5. Si en el contexto no existe la información suficiente para contestar la respuesta, responde EXACTAMENTE:\n"
+            "   «No dispongo de información suficiente en el contexto proporcionado.»\n"
+            "6. Responde en el idioma de la respuesta.\n\n"
+            "════════ FORMATO DE SALIDA ════════\n"
+            "- Respuesta breve (máx. 3 frases) o lista con viñetas si hay varios puntos.\n"
+            "- Cada afirmación respaldada por una cita.\n"
+            "- No añadas secciones extra como \"Fuentes\" ni firmas.\n\n"
+            "════════ PREGUNTA ════════\n"
+            f"{query}\n\n"
+            "════════ CONTEXTO ════════\n"
+            "Ahora se va a suministrar los contextos relevantes para la respuesta, ten en cuenta que los contextos proporcionados con un menor score son los más relevantes para la pregunta formulada.\n"
+            f"Contexto: {context}\n\n"
+            "════════ FIN ════════"
         )
 
 # # Ejemplo de uso desde otro script:
