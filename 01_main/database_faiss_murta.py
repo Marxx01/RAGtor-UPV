@@ -4,6 +4,7 @@ import sqlite3
 from typing import List, Tuple
 from itertools import chain
 import PyPDF2
+import pymupdf  # Change this import
 from langchain.schema import Document
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -12,10 +13,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import database_sql as db
 import torch
 import faiss
-import fitz  # PyMuPDF
-import sys
 
+# Set torch classes path to empty and disable tokenizer parallelism
+torch.classes.path = []
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["STATIC_DIRECTORY"] = "."  # Set static directory to current
 
 # =============================================================================
 
@@ -108,14 +110,14 @@ def process_single_pdf(file_path: str, pdf_id: int, chunk_size: int, chunk_overl
     
     elif int(filename[:4])<2006:
         try:
-            doc = fitz.open(file_path)
+            doc = pymupdf.open(file_path)  # Changed from fitz to pymupdf
             for i, page in enumerate(doc, start=1):
                 try:
                     rect = page.rect
                     mitad_x = rect.width / 2
 
-                    col_izquierda = fitz.Rect(0, 0, mitad_x, rect.height)
-                    col_derecha = fitz.Rect(mitad_x, 0, rect.width, rect.height)
+                    col_izquierda = pymupdf.Rect(0, 0, mitad_x, rect.height)
+                    col_derecha = pymupdf.Rect(mitad_x, 0, rect.width, rect.height)
 
                     text_left = page.get_text("text", clip=col_izquierda).strip()
                     text_right = page.get_text("text", clip=col_derecha).strip()

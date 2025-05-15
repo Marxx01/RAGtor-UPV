@@ -1,10 +1,58 @@
+import os
+import sys
+import asyncio
+import nest_asyncio
 import streamlit as st
 from datetime import datetime
 import time
+import torch
+import os
+os.environ["PYTORCH_NO_MODULE"] = "1"
+# Set environment variables before any other imports
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["STATIC_DIRECTORY"] = os.path.dirname(os.path.abspath(__file__))
 
-# Import your PoliGPT class
-# Asegúrate de que el archivo poli_gpt.py esté en la misma carpeta o accesible en el PATH
-from poli_gpt import PoliGPT
+# Fix PyTorch class path issue
+if hasattr(torch.classes, '__dict__'):
+    torch.classes.__dict__['_path'] = []
+
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+# Configure event loop
+def setup_event_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
+
+# Apply nest_asyncio for nested event loops
+try:
+    setup_event_loop()
+    nest_asyncio.apply()
+except Exception as e:
+    st.error(f"Error setting up event loop: {e}")
+
+# Import PoliGPT after environment setup
+try:
+    from poli_gpt import PoliGPT
+except ImportError as e:
+    st.error(f"Error importing PoliGPT: {e}")
+    st.stop()
+
+# Initialize PoliGPT client with proper error handling
+@st.cache_resource
+def init_poligpt():
+    try:
+        setup_event_loop()
+        return PoliGPT()
+    except Exception as e:
+        st.error(f"Error initializing RAG model: {str(e)}")
+        return None
 
 # Configuración de la página
 st.set_page_config(
@@ -210,13 +258,13 @@ if "messages" not in st.session_state:
 
 # Initialize PoliGPT client only once per session
 if "poligpt_client" not in st.session_state:
-    with st.spinner("Initializing RAG model..."): # Optional: show a spinner while initializing
-        try:
-            st.session_state.poligpt_client = PoliGPT()
-            st.success("RAG model initialized!") # Optional: show success message
-        except Exception as e:
-             st.error(f"Error initializing RAG model: {e}")
-             st.stop() # Stop execution if initialization fails
+    with st.spinner("Initializing RAG model..."):
+        st.session_state.poligpt_client = init_poligpt()
+        if st.session_state.poligpt_client:
+            st.success("RAG model initialized successfully!")
+        else:
+            st.error("Failed to initialize RAG model")
+            st.stop()
 
 # Retrieve the PoliGPT client from session state
 poligpt_client = st.session_state.poligpt_client
@@ -292,34 +340,31 @@ if prompt:
 
 # After rerunning, if the last message was from the user, generate a bot response
 if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    # Use the PoliGPT client to get the response
     with st.chat_message("assistant"):
-         with st.spinner("Pensando..."):
+        with st.spinner("Pensando..."):
             try:
-                # Call the actual query method from your PoliGPT instance
-                # This returns the dictionary { "response": "...", "contexts": "..." }
+                print("[INTERFAZ] Último mensaje del usuario:", st.session_state.messages[-1]["message"])
                 bot_result_dict = poligpt_client.query_poligpt(st.session_state.messages[-1]["message"])
+                print("[INTERFAZ] Diccionario de resultado recibido:", bot_result_dict)
 
-                # Extract the formatted response and contexts from the dictionary
                 bot_response_text = bot_result_dict.get('response', 'Error: No response text received.')
-                bot_contexts_text = bot_result_dict.get('contexts', '') # Get contexts, default to empty string if not present
+                bot_contexts_text = bot_result_dict.get('contexts', '')
+                print("[INTERFAZ] Texto de respuesta:", bot_response_text)
+                print("[INTERFAZ] Contextos usados:", bot_contexts_text)
 
             except Exception as e:
+                print("[INTERFAZ] Error al generar la respuesta:", repr(e))
                 bot_response_text = f"Sorry, an error occurred while generating the response: {e}"
-                bot_contexts_text = "" # No contexts in case of error
-                st.error(bot_response_text) # Display error in the chat bubble
+                bot_contexts_text = ""
+                st.error(bot_response_text)
 
             timestamp = datetime.now().strftime("%H:%M:%S")
-
-            # Add assistant message to history, storing response and contexts separately
             st.session_state.messages.append({
                 "role": "assistant",
-                "response_text": bot_response_text, # Store the formatted response text
-                "contexts_text": bot_contexts_text, # Store the formatted contexts text
+                "response_text": bot_response_text,
+                "contexts_text": bot_contexts_text,
                 "timestamp": timestamp
             })
-
-            # Rerun to show the bot response
             st.rerun()
 
 
