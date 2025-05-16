@@ -2,14 +2,13 @@
 
 ## Project Overview
 
-RAGtor-UPV is an AI-powered chatbot designed to assist students at the Universitat Politècnica de València (UPV) by answering questions about university regulations. This project utilizes Retrieval-Augmented Generation (RAG) and the Raft algorithm (RAG + Fine-Tuning) to provide accurate and context-aware responses.
+RAGtor-UPV is an AI-powered chatbot designed to assist students at the Universitat Politècnica de València (UPV) by answering questions about university regulations. This project utilizes Retrieval-Augmented Generation (RAG) to provide accurate and context-aware responses.
 
 ## Features
 
 - Interactive chatbot interface for students to ask questions
 - Utilizes UPV's regulatory documents as the knowledge base
 - Implements RAG (Retrieval-Augmented Generation) for improved answer accuracy
-- Uses the Raft algorithm for consistent and reliable information retrieval, using Fine-tuning to improve the answers
 - Maintains an up-to-date database of regulatory PDFs
 
 ## How It Works
@@ -23,10 +22,7 @@ RAGtor-UPV is an AI-powered chatbot designed to assist students at the Universit
    - When a student asks a question, the system retrieves relevant information from the PDF database.
    - This retrieved context is then used to generate an accurate response.
 
-3. **Raft Algorithm**:
-   - Ensures consistency in information retrieval across potential multiple instances of the chatbot.
-
-4. **User Interface**:
+3. **User Interface**:
    - Students interact with the chatbot through a Streamlit-based web interface.
    - The chat history is maintained within each session for context continuity.
 
@@ -53,14 +49,12 @@ To use RAGtor-UPV:
 2. **Chatbot Interface** (`test_interfaz.py`):
 - Provides the Streamlit-based user interface for student interactions.
 
-3. **RAG and Raft Implementation** (not visible in provided snippets):
+3. **RAG**:
 - Manages the retrieval and generation of responses based on the regulatory documents.
 
 ## Future Improvements
 
 - Enhance the accuracy of information retrieval and response generation
-- Implement multi-language support for international students
-- Develop a mobile application for easier access
 - Integrate with UPV's student portal for seamless authentication
 
 ## Contributors
