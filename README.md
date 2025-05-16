@@ -1,78 +1,161 @@
-# RAGtor-UPV: Chatbot for UPV Student Regulations
+# RAGtor-UPV: AI Chatbot for UPV Regulations
 
 ## Project Overview
 
-RAGtor-UPV is an AI-powered chatbot designed to assist students at the Universitat Politècnica de València (UPV) by answering questions about university regulations. This project utilizes Retrieval-Augmented Generation (RAG) and the Raft algorithm (RAG + Fine-Tuning) to provide accurate and context-aware responses.
+**RAGtor-UPV** is an AI-powered chatbot designed to assist students, staff, and faculty at the Universitat Politècnica de València (UPV) by answering questions about university regulations, procedures, and academic policies. The system leverages Retrieval-Augmented Generation (RAG) with a custom vector database (FAISS) and a large language model (PoliGPT) to provide accurate, context-aware, and up-to-date responses based on official university documents.
+
+---
 
 ## Features
 
-- Interactive chatbot interface for students to ask questions
-- Utilizes UPV's regulatory documents as the knowledge base
-- Implements RAG (Retrieval-Augmented Generation) for improved answer accuracy
-- Uses the Raft algorithm for consistent and reliable information retrieval, using Fine-tuning to improve the answers
-- Maintains an up-to-date database of regulatory PDFs
+- **Conversational Chatbot**: Friendly, interactive chat interface built with Streamlit.
+- **Contextual Retrieval**: Uses semantic search (FAISS + sentence-transformers) to find the most relevant regulatory content.
+- **RAG Pipeline**: Combines retrieved context with a generative LLM (PoliGPT) for precise, grounded answers.
+- **PDF & Database Management**: Automatically scans, indexes, and updates regulatory PDFs in a SQLite database.
+- **Parallel Processing**: Efficient PDF chunking and embedding using multiprocessing.
+- **Session Memory**: Maintains chat history for context continuity.
+- **Customizable & Extensible**: Modular codebase for easy adaptation to other institutions or document sets.
+
+---
 
 ## How It Works
 
-1. **PDF Management**: 
-   - The system scans a directory for regulatory PDF documents.
-   - New or updated PDFs are detected and registered in a SQLite database.
-   - Changes to the document repository are logged for tracking purposes.
+1. **PDF Ingestion & Database Update**
+   - Place all regulatory PDFs in the `01_data/pdf_actuales/` directory.
+   - Run the database update script to scan, register, and track new or modified PDFs in `project_database.db`.
 
-2. **RAG Implementation**:
-   - When a student asks a question, the system retrieves relevant information from the PDF database.
-   - This retrieved context is then used to generate an accurate response.
+2. **Chunking & Embedding**
+   - PDFs are split into overlapping text chunks.
+   - Each chunk is embedded using a multilingual transformer model (`sentence-transformers/LaBSE`).
 
-3. **Raft Algorithm**:
-   - Ensures consistency in information retrieval across potential multiple instances of the chatbot.
+3. **FAISS Vector Store**
+   - All embeddings are stored in a FAISS index (`01_data/project_faiss/`) for fast semantic search.
 
-4. **User Interface**:
-   - Students interact with the chatbot through a Streamlit-based web interface.
-   - The chat history is maintained within each session for context continuity.
+4. **Chatbot Interaction**
+   - Users interact via a Streamlit web interface.
+   - When a question is asked, the system retrieves the top-k most relevant chunks from FAISS.
+   - The retrieved context and the user’s question are sent to PoliGPT (hosted LLM API).
+   - PoliGPT generates a concise, context-grounded answer, citing the relevant regulation.
 
-## Data Used
+5. **Session & Logging**
+   - All interactions are logged for future improvements and analytics.
 
-- PDF documents containing UPV regulations and normative information
-- SQLite database to manage and track PDF documents
-- Chat logs and user interactions (for improving the system)
+---
 
-## Usage
+## Setup Instructions
 
-To use RAGtor-UPV:
+### 1. Clone the Repository
 
-1. Ensure all regulatory PDFs are in the designated directory.
-2. Run the database update script to index new or modified documents.
-3. Launch the Streamlit interface: <streamlit run test_interfaz.py>
-4. Students can then access the chatbot through a web browser and start asking questions about UPV regulations.
+```sh
+git clone https://github.com/your-org/ragtor-upv.git
+cd ragtor-upv
+```
 
-## Components
+### 2. Prepare the Environment
 
-1. **PDF Database Management** (`database.py`):
-- Handles scanning, registering, and updating PDF documents in the database.
+- Install Python 3.9+ (recommended: use a virtual environment).
+- Install dependencies:
 
-2. **Chatbot Interface** (`test_interfaz.py`):
-- Provides the Streamlit-based user interface for student interactions.
+```sh
+python -m venv rag_fix
+source rag_fix/Scripts/activate  # On Windows: rag_fix\Scripts\activate
+pip install -r requirements.txt
+```
 
-3. **RAG and Raft Implementation** (not visible in provided snippets):
-- Manages the retrieval and generation of responses based on the regulatory documents.
+### 3. Prepare Data
 
-## Future Improvements
+- Place all regulatory PDFs in `01_data/pdf_actuales/`.
+- (Optional) Place additional CSVs or data in `01_data/DB_CSV/`.
 
-- Enhance the accuracy of information retrieval and response generation
-- Implement multi-language support for international students
-- Develop a mobile application for easier access
-- Integrate with UPV's student portal for seamless authentication
+### 4. Initialize the Database
+
+```sh
+python 01_main/database_sql.py
+```
+
+This will create and populate `01_data/project_database.db` with metadata about your PDFs.
+
+### 5. Build or Update the FAISS Index
+
+```sh
+python 01_main/database_faiss_murta.py
+```
+
+This script will:
+- Chunk and embed all active PDFs.
+- Store embeddings in the FAISS index (`01_data/project_faiss/`).
+
+### 6. Launch the Chatbot Interface
+
+```sh
+streamlit run 01_main/interfaz_00_conexion_prueba.py
+```
+
+Open the provided local URL in your browser to start chatting with RAGtor-UPV.
+
+---
+
+## Project Structure
+
+```
+01_data/
+    pdf_actuales/         # Regulatory PDFs
+    project_database.db   # SQLite DB with PDF and chunk metadata
+    project_faiss/        # FAISS vector index
+    DB_CSV/               # Additional data (optional)
+01_main/
+    database_sql.py       # DB creation and update scripts
+    database_faiss_murta.py # FAISS index management
+    poli_gpt.py           # RAG pipeline and PoliGPT API client
+    interfaz_00_conexion_prueba.py # Streamlit chatbot UI
+static/                   # Static files for web interface
+rag_fix/                  # Python virtual environment
+```
+
+---
+
+## Typical Workflow
+
+1. **Add or update PDFs** in `01_data/pdf_actuales/`.
+2. **Update the database**:  
+   `python 01_main/database_sql.py`
+3. **Update the FAISS index**:  
+   `python 01_main/database_faiss_murta.py`
+4. **Launch the chatbot**:  
+   `streamlit run 01_main/interfaz_00_conexion_prueba.py`
+5. **Ask questions** about UPV regulations and receive grounded, referenced answers.
+
+---
+
+## Troubleshooting
+
+- **No vectors in FAISS**: Make sure you have run both the database and FAISS update scripts after adding PDFs.
+- **Timeouts with PoliGPT**: Check your internet connection and the availability of the PoliGPT API.
+- **Database errors**: Ensure the database is created and up-to-date before running the FAISS script.
+- **PDF parsing errors**: Some PDFs may be encrypted or malformed; check logs for details.
+
+---
 
 ## Contributors
 
-This project is developed and maintained by:
+- [Marxx01](https://github.com/Marxx01) - Marc Hurtado Beneyto
+- [Hervaas8](https://github.com/Hervaas8) - Alejandro Hervás Castillo
+- [Vimapo23](https://github.com/Vimapo23) - Víctor Mánez Poveda
+- [QuicoCaballer](https://github.com/QuicoCaballer) - Francisco Caballer Gutierrez
+- [ogarmar](https://github.com/ogarmar) - Óscar García Martínez
 
-- [Marxx01](https://github.com/Marxx01) -Marc Hurtado Beneyto
-- [Hervaas8](https://github.com/Hervaas8) -Alejandro Hervás Castillo
-- [Vimapo23](https://github.com/Vimapo23) -Víctor Mánez Poveda
-- [QuicoCaballer](https://github.com/QuicoCaballer) -Francisco Caballer Gutierrez
-- [ogarmar](https://github.com/ogarmar) -Óscar García Martínez
+---
 
 ## License
 
-[RAGTor-UPV, Universitat Politécnica de Valencia]
+RAGtor-UPV, Universitat Politècnica de València
+
+---
+
+## Acknowledgements
+
+- [LangChain](https://github.com/hwchase17/langchain)
+- [FAISS](https://github.com/facebookresearch/faiss)
+- [Streamlit](https://streamlit.io/)
+- [sentence-transformers](https://www.sbert.net/)
+- [OpenAI](https://openai.com/)
