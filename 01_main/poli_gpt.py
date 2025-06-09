@@ -43,7 +43,7 @@ class PoliGPT:
 
     def _init_openai_client(self):
         self.client = openai.OpenAI(
-            api_key="sk-1mayqHi3ba5ey5jfTZaYeQ",
+            api_key="", #PON TU API_KEY AQUI
             base_url="https://api.poligpt.upv.es",
             timeout=300.0,  # Timeout más corto por intento
             max_retries=5  # Más reintentos
@@ -184,7 +184,7 @@ class PoliGPT:
 #     def __init__(self, faiss_index_dir='./01_data/project_faiss'):
 #         self._setup_event_loop()
 #         self._init_embeddings()
-#         self.hf_token = "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"  # <-- Pega aquí tu token de Hugging Face
+#         self.hf_token = ""  # <-- Pega aquí tu token de Hugging Face
 #         self.hf_model = "HuggingFaceH4/zephyr-7b-beta"  # Puedes cambiar por otro modelo open source
 #         self._init_faiss(faiss_index_dir)
 
