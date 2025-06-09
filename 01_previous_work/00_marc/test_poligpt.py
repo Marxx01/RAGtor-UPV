@@ -1,7 +1,7 @@
 import openai
 
 client = openai.OpenAI(
-    api_key="sk-1C-hWjmHEW05iQjwmr9EnA",
+    api_key="", #Pon la key aqui
     base_url="https://api.poligpt.upv.es"
 )
 
