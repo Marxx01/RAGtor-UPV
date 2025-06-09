@@ -10,7 +10,7 @@ class PoliGPT:
         # Configuración inicial
         self.model = HuggingFaceEmbeddings(model_name="sentence-transformers/LaBSE")
         self.client = openai.OpenAI(
-            api_key="sk-1C-hWjmHEW05iQjwmr9EnA",
+            api_key="", #Pon la key aqui
             base_url="https://api.poligpt.upv.es"
         )
         
